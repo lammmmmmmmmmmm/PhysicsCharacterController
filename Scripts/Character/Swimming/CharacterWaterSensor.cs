@@ -21,6 +21,7 @@ namespace PhysicsCharacterController
 
         public bool HasWaterVolume => _activeWaterVolume != null;
         public bool IsSufficientlyImmersed { get; private set; }
+        public bool IsSwimmingEntryThresholdReached => HasWaterVolume && Immersion01 >= _settingsSO.EnterSwimmingImmersion01;
         public float Immersion01 { get; private set; }
         public float WaterSurfaceHeightMeters { get; private set; }
 
@@ -36,6 +37,21 @@ namespace PhysicsCharacterController
             _activeWaterVolume = null;
             IsSufficientlyImmersed = false;
             Immersion01 = 0f;
+        }
+
+        #endregion
+
+        #region Public Methods
+
+        public bool ShouldUseTerrestrialMovementInShallowWater(bool isGrounded, float groundHeightMeters)
+        {
+            float standingColliderHeightMeters = _characterColliderShape.HeightMeters * Mathf.Abs(transform.lossyScale.y);
+            return HasWaterVolume && _stateResolver.ShouldUseTerrestrialMovementInShallowWater(
+                isGrounded,
+                WaterSurfaceHeightMeters,
+                groundHeightMeters,
+                standingColliderHeightMeters,
+                _settingsSO.EnterSwimmingImmersion01);
         }
 
         #endregion

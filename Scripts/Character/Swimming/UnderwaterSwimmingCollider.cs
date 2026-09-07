@@ -243,8 +243,15 @@ namespace PhysicsCharacterController
             Vector3[] candidateRootPositions,
             ref int candidateCount)
         {
-            if (candidateCount >= candidateRootPositions.Length
-                || !TryResolveUprightPenetration(currentRootPosition, shouldCombinePenetrations, out Vector3 candidateRootPosition)
+            if (candidateCount >= candidateRootPositions.Length)
+            {
+                return;
+            }
+
+            if (!TryResolveUprightPenetration(
+                    currentRootPosition,
+                    shouldCombinePenetrations,
+                    out Vector3 candidateRootPosition)
                 || !IsRecoveryPathClear(candidateRootPosition))
             {
                 return;
@@ -459,7 +466,54 @@ namespace PhysicsCharacterController
                     continue;
                 }
 
+                if (hit.distance <= Mathf.Epsilon
+                    && IsSeparatingFromInitialContact(
+                        hit.collider,
+                        worldDirection,
+                        distanceMeters))
+                {
+                    continue;
+                }
+
                 return false;
+            }
+
+            return true;
+        }
+
+        private bool IsSeparatingFromInitialContact(
+            Collider contactCollider,
+            Vector3 worldDirection,
+            float pathDistanceMeters)
+        {
+            float separationProbeDistanceMeters = Mathf.Min(_settingsSO.CollisionSweepSkinMeters, pathDistanceMeters);
+            Vector3 separationProbeRootPosition = _rigidbody.position + worldDirection * separationProbeDistanceMeters;
+            CalculateColliderPoseAtRootPosition(
+                _underwaterCollider,
+                separationProbeRootPosition,
+                out Vector3 colliderPosition,
+                out Quaternion colliderRotation);
+            int overlapCount = _underwaterCollider.OverlapAtPoseNonAlloc(
+                colliderPosition,
+                colliderRotation,
+                _overlapResults,
+                _solidCollisionMask,
+                QueryTriggerInteraction.Ignore);
+            if (overlapCount == MAX_OVERLAP_COUNT)
+            {
+                Debug.LogWarning(
+                    $"Swimming exit separation probe for '{name}' filled the overlap buffer; " +
+                    "the initial contact remains blocking.",
+                    this);
+                return false;
+            }
+
+            for (int overlapIndex = 0; overlapIndex < overlapCount; overlapIndex++)
+            {
+                if (_overlapResults[overlapIndex] == contactCollider)
+                {
+                    return false;
+                }
             }
 
             return true;

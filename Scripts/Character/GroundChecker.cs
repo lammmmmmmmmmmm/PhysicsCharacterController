@@ -13,6 +13,7 @@ namespace PhysicsCharacterController
     /// </summary>
     // Must evaluate before SlopeChecker and all other consumers each physics tick.
     [DefaultExecutionOrder(-20)]
+    [RequireComponent(typeof(Rigidbody))]
     public class GroundChecker : MonoBehaviour
     {
         private const int MAX_GROUND_HIT_COUNT = 16;
@@ -25,6 +26,7 @@ namespace PhysicsCharacterController
 
         private readonly RaycastHit[] _groundHits = new RaycastHit[MAX_GROUND_HIT_COUNT];
         private CharacterColliderShape _characterColliderShape;
+        private Rigidbody _characterRigidbody;
         private bool _wasGrounded;
         private bool _isGrounded;
         private RaycastHit _groundHit;
@@ -40,6 +42,7 @@ namespace PhysicsCharacterController
         private void Awake()
         {
             _characterColliderShape = GetComponent<CharacterColliderShape>();
+            _characterRigidbody = GetComponent<Rigidbody>();
         }
 
         private void FixedUpdate()
@@ -136,8 +139,7 @@ namespace PhysicsCharacterController
             {
                 RaycastHit candidateHit = _groundHits[hitIndex];
                 if (candidateHit.distance <= 0f ||
-                    candidateHit.collider.attachedRigidbody ==
-                    _characterColliderShape.PhysicsCollider.attachedRigidbody ||
+                    candidateHit.collider.attachedRigidbody == _characterRigidbody ||
                     Vector3.Dot(candidateHit.normal, Vector3.up) <= 0f ||
                     candidateHit.distance >= nearestDistanceMeters)
                 {

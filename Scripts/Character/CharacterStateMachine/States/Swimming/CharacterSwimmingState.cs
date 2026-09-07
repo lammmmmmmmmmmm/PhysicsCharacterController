@@ -12,6 +12,7 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
 
         private readonly CharacterStateContext _context;
         private float _nextBlockedExitWarningTimeSeconds;
+        private bool _isShallowWaterExitRecoveryActive;
 
         public CharacterSwimmingState(StateMachine machine, State parent, CharacterStateContext context)
             : base(machine, parent)
@@ -34,14 +35,22 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
 
         protected override State GetTransition()
         {
-            if (_context.WaterSensor.IsSufficientlyImmersed)
+            bool isGroundedInShallowWater = _context.IsGroundedInShallowWater;
+            bool shouldContinueShallowWaterRecovery = _isShallowWaterExitRecoveryActive && _context.SwimmingMovement.IsTerrestrialExitRecoveryActive;
+            bool shouldExitSwimming = !_context.WaterSensor.IsSufficientlyImmersed
+                || isGroundedInShallowWater
+                || shouldContinueShallowWaterRecovery;
+            if (!shouldExitSwimming)
             {
+                _isShallowWaterExitRecoveryActive = false;
                 _context.SwimmingMovement.CancelTerrestrialExitRecovery();
                 return null;
             }
 
             if (!TryPrepareTerrestrialExit())
             {
+                _isShallowWaterExitRecoveryActive = (isGroundedInShallowWater || _isShallowWaterExitRecoveryActive)
+                    && _context.SwimmingMovement.IsTerrestrialExitRecoveryActive;
                 return null;
             }
 
@@ -50,12 +59,14 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
 
         protected override void OnEnter()
         {
+            _isShallowWaterExitRecoveryActive = false;
             _context.Input.SetTerrestrialActionsEnabled(false);
             _context.CharacterCrouch.ApplyStandState();
         }
 
         protected override void OnExit()
         {
+            _isShallowWaterExitRecoveryActive = false;
             _context.Input.SetTerrestrialActionsEnabled(true);
             _context.CharacterRotationPolicy.SetAutomaticRotationEnabled(true);
             _context.SwimmingMovement.ResetMovement();

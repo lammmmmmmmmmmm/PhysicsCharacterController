@@ -2464,6 +2464,10 @@ PrefabInstance:
       value: SwimmingPool
       objectReference: {fileID: 0}
     - target: {fileID: 2526162420816353230, guid: 12a77f2ac7e519d4a881b87aa61915a9, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 2.74
+      objectReference: {fileID: 0}
+    - target: {fileID: 2526162420816353230, guid: 12a77f2ac7e519d4a881b87aa61915a9, type: 3}
       propertyPath: m_LocalRotation.w
       value: 1
       objectReference: {fileID: 0}
@@ -10074,10 +10078,6 @@ PrefabInstance:
       propertyPath: CollideAgainst.m_Bits
       value: 9
       objectReference: {fileID: 0}
-    - target: {fileID: 4279322704257043701, guid: c47a17ba764f3ef4db5fff99e93df6c6, type: 3}
-      propertyPath: _groundMask.m_Bits
-      value: 8
-      objectReference: {fileID: 0}
     - target: {fileID: 5251998789446294007, guid: c47a17ba764f3ef4db5fff99e93df6c6, type: 3}
       propertyPath: _touchLookInput
       value: 
@@ -10101,10 +10101,6 @@ PrefabInstance:
     - target: {fileID: 6010666514102873651, guid: c47a17ba764f3ef4db5fff99e93df6c6, type: 3}
       propertyPath: _groundedVerticalDeadbandMeters
       value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 6615200977716032771, guid: c47a17ba764f3ef4db5fff99e93df6c6, type: 3}
-      propertyPath: _groundMask.m_Bits
-      value: 8
       objectReference: {fileID: 0}
     - target: {fileID: 7199283455610134528, guid: c47a17ba764f3ef4db5fff99e93df6c6, type: 3}
       propertyPath: m_Enabled

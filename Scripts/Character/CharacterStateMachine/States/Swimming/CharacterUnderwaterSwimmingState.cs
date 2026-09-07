@@ -44,7 +44,11 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
 
         protected override void OnFixedUpdate(float fixedDeltaTime)
         {
-            if (_context.WaterSensor.IsSufficientlyImmersed)
+            if (_context.SwimmingMovement.IsTerrestrialExitRecoveryActive)
+            {
+                _context.SwimmingMovement.MoveForTerrestrialExitRecovery(fixedDeltaTime);
+            }
+            else if (_context.WaterSensor.IsSufficientlyImmersed)
             {
                 _context.SwimmingMovement.MoveUnderwater(fixedDeltaTime);
             }

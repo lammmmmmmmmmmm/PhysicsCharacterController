@@ -42,9 +42,19 @@ namespace PhysicsCharacterController
                 return false;
             }
 
-            worldDirection = _isLockedToCamera || _isCameraFacingOverrideEnabled
-                ? _characterCamera.forward
-                : _input.HorizontalMoveDirection;
+            if (_isLockedToCamera || _isCameraFacingOverrideEnabled)
+            {
+                worldDirection = _characterCamera.forward;
+                return true;
+            }
+
+            if (_input.GetMoveInput().sqrMagnitude <= Mathf.Epsilon)
+            {
+                worldDirection = default;
+                return false;
+            }
+
+            worldDirection = _input.HorizontalMoveDirection;
             return true;
         }
 

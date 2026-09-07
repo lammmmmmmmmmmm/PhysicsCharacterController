@@ -1,3 +1,5 @@
+using UnityEngine;
+
 namespace PhysicsCharacterController
 {
     public sealed class SwimmingStateResolver
@@ -13,6 +15,23 @@ namespace PhysicsCharacterController
                 : enterSwimmingImmersion01;
 
             return immersion01 >= threshold01;
+        }
+
+        public bool ShouldUseTerrestrialMovementInShallowWater(
+            bool isGrounded,
+            float waterSurfaceHeightMeters,
+            float groundHeightMeters,
+            float standingColliderHeightMeters,
+            float enterSwimmingImmersion01)
+        {
+            if (!isGrounded || standingColliderHeightMeters <= 0f)
+            {
+                return false;
+            }
+
+            float waterDepthMeters = Mathf.Max(0f, waterSurfaceHeightMeters - groundHeightMeters);
+            float groundedStandingImmersion01 = Mathf.Clamp01(waterDepthMeters / standingColliderHeightMeters);
+            return groundedStandingImmersion01 < enterSwimmingImmersion01;
         }
 
         public bool ShouldDive(float inputMagnitude, float requestedDirectionY, float movementInputThreshold, float diveDirectionYThreshold)

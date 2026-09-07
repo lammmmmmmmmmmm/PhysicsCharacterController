@@ -24,7 +24,7 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
 
         protected override State GetTransition()
         {
-            return _context.WaterSensor.IsSufficientlyImmersed
+            return _context.WaterSensor.IsSwimmingEntryThresholdReached
                 ? ((CharacterRootState)Parent).Swimming
                 : null;
         }

@@ -68,5 +68,6 @@ namespace PhysicsCharacterController.CharacterStateMachine
         }
 
         public bool IsGrounded => GroundChecker.IsGrounded;
+        public bool IsGroundedInShallowWater => WaterSensor.ShouldUseTerrestrialMovementInShallowWater(IsGrounded, GroundChecker.GroundHit.point.y);
     }
 }

@@ -206,7 +206,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _groundMask:
     serializedVersion: 2
-    m_Bits: 1
+    m_Bits: 9
   _checkRadiusMeters: 0.5
   _groundToleranceMeters: 0.1
 --- !u!114 &3026518424203180078
@@ -223,7 +223,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _groundMask:
     serializedVersion: 2
-    m_Bits: 1
+    m_Bits: 9
   _stepCheckerThreshold: 0.6
   _maxStepHeight: 0.7
   _stepUpSpeedMetersPerSecond: 1.5

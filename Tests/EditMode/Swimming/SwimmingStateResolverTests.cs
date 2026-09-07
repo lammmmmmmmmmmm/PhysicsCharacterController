@@ -43,6 +43,52 @@ namespace PhysicsCharacterController.Tests
         }
 
         [Test]
+        public void ShouldUseTerrestrialMovementInShallowWater_GroundedBelowEntryDepth_ReturnsTrue()
+        {
+            bool shouldUseTerrestrialMovement = _resolver.ShouldUseTerrestrialMovementInShallowWater(
+                isGrounded: true,
+                waterSurfaceHeightMeters: 1.2f,
+                groundHeightMeters: 0f,
+                standingColliderHeightMeters: 2f,
+                enterSwimmingImmersion01: 0.65f);
+
+            Assert.That(shouldUseTerrestrialMovement, Is.True);
+        }
+
+        [Test]
+        public void ShouldUseTerrestrialMovementInShallowWater_AtEntryDepth_ReturnsFalse()
+        {
+            bool shouldUseTerrestrialMovement = _resolver.ShouldUseTerrestrialMovementInShallowWater(
+                isGrounded: true,
+                waterSurfaceHeightMeters: 1.3f,
+                groundHeightMeters: 0f,
+                standingColliderHeightMeters: 2f,
+                enterSwimmingImmersion01: 0.65f);
+
+            Assert.That(shouldUseTerrestrialMovement, Is.False);
+        }
+
+        [Test]
+        public void ShouldUseTerrestrialMovementInShallowWater_DeepOrAirborne_ReturnsFalse()
+        {
+            bool deepGroundShouldUseTerrestrialMovement = _resolver.ShouldUseTerrestrialMovementInShallowWater(
+                isGrounded: true,
+                waterSurfaceHeightMeters: 3f,
+                groundHeightMeters: 0f,
+                standingColliderHeightMeters: 2f,
+                enterSwimmingImmersion01: 0.65f);
+            bool airborneShouldUseTerrestrialMovement = _resolver.ShouldUseTerrestrialMovementInShallowWater(
+                isGrounded: false,
+                waterSurfaceHeightMeters: 1f,
+                groundHeightMeters: 0f,
+                standingColliderHeightMeters: 2f,
+                enterSwimmingImmersion01: 0.65f);
+
+            Assert.That(deepGroundShouldUseTerrestrialMovement, Is.False);
+            Assert.That(airborneShouldUseTerrestrialMovement, Is.False);
+        }
+
+        [Test]
         public void ShouldDive_AtDownwardThresholdWithInput_ReturnsTrue()
         {
             bool shouldDive = _resolver.ShouldDive(1f, -0.2f, 0.01f, -0.2f);

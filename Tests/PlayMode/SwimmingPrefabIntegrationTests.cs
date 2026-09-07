@@ -100,8 +100,85 @@ namespace PhysicsCharacterController.Tests.PlayMode
 
             CharacterWaterSensor waterSensor = _underwaterCollider.GetComponent<CharacterWaterSensor>();
             Assert.That(waterSensor.IsSufficientlyImmersed, Is.False);
+            Assert.That(waterSensor.IsSwimmingEntryThresholdReached, Is.False);
             Assert.That(_underwaterCollider.IsActive, Is.False);
             Assert.That(_underwaterCollider.GetComponent<CharacterColliderShape>().IsPhysicsEnabled, Is.True);
+        }
+
+        [UnityTest]
+        public IEnumerator SwimmingFromDeepWaterOntoShallowRamp_TransitionsToTerrestrialMovement()
+        {
+            PlaceCharacter(new Vector3(0f, _testPoolSurfaceHeightMeters - 2f, 0f));
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+            Assert.That(_underwaterCollider.IsActive, Is.True);
+
+            Collider shallowRampCollider = _poolInstance.transform.Find("Shallow Entry Ramp").GetComponent<Collider>();
+            var rampRay = new Ray(
+                new Vector3(0f, _testPoolSurfaceHeightMeters + 1f, -3.5f),
+                Vector3.down);
+            bool didHitRamp = shallowRampCollider.Raycast(rampRay, out RaycastHit rampHit, 10f);
+            Assert.That(
+                didHitRamp,
+                Is.True,
+                $"Ramp bounds={shallowRampCollider.bounds}, ray origin={rampRay.origin}");
+            PlaceCharacter(rampHit.point + rampHit.normal * 0.46f);
+
+            bool wasGroundedShallowWaterObserved = false;
+            GroundChecker groundChecker = _underwaterCollider.GetComponent<GroundChecker>();
+            CharacterWaterSensor waterSensor = _underwaterCollider.GetComponent<CharacterWaterSensor>();
+            for (int fixedStepIndex = 0;
+                 fixedStepIndex < MAXIMUM_EXIT_RECOVERY_FIXED_STEPS && _underwaterCollider.IsActive;
+                 fixedStepIndex++)
+            {
+                yield return new WaitForFixedUpdate();
+                wasGroundedShallowWaterObserved |= waterSensor.ShouldUseTerrestrialMovementInShallowWater(
+                    groundChecker.IsGrounded,
+                    groundChecker.GroundHit.point.y);
+            }
+
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+
+            Assert.That(
+                wasGroundedShallowWaterObserved,
+                Is.True,
+                $"root={_underwaterCollider.transform.position}, ramp hit={rampHit.point}, " +
+                $"grounded={groundChecker.IsGrounded}, immersion={waterSensor.Immersion01}");
+            Assert.That(
+                _underwaterCollider.IsActive,
+                Is.False,
+                $"Shallow-water exit did not complete. root={_underwaterCollider.transform.position}, " +
+                $"recovery={_underwaterCollider.IsTerrestrialExitRecoveryActive}, " +
+                $"grounded={groundChecker.IsGrounded}, immersion={waterSensor.Immersion01}");
+            Assert.That(waterSensor.IsSwimmingEntryThresholdReached, Is.False);
+            Assert.That(_underwaterCollider.GetComponent<CharacterColliderShape>().IsPhysicsEnabled, Is.True);
+            Assert.That(_underwaterCollider.GetComponent<BaseCharacterInput>().AreTerrestrialActionsEnabled, Is.True);
+        }
+
+        [UnityTest]
+        public IEnumerator SwimmingNearDeepPoolFloor_RemainsSwimming()
+        {
+            PlaceCharacter(new Vector3(0f, _testPoolSurfaceHeightMeters - 2f, 0f));
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+            Assert.That(_underwaterCollider.IsActive, Is.True);
+
+            PlaceCharacter(new Vector3(0f, _testPoolFloorTopHeightMeters + 0.46f, 0f));
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+
+            GroundChecker groundChecker = _underwaterCollider.GetComponent<GroundChecker>();
+            CharacterWaterSensor waterSensor = _underwaterCollider.GetComponent<CharacterWaterSensor>();
+            Assert.That(
+                waterSensor.ShouldUseTerrestrialMovementInShallowWater(
+                    groundChecker.IsGrounded,
+                    groundChecker.GroundHit.point.y),
+                Is.False);
+            Assert.That(_underwaterCollider.IsActive, Is.True);
         }
 
         [Test]
