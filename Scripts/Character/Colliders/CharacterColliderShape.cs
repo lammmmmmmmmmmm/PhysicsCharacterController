@@ -87,6 +87,15 @@ namespace PhysicsCharacterController
             LayerMask collisionMask,
             QueryTriggerInteraction queryTriggerInteraction);
 
+        public abstract int CastAtPoseNonAlloc(
+            Vector3 worldPosition,
+            Quaternion worldRotation,
+            Vector3 worldDirection,
+            float distanceMeters,
+            RaycastHit[] castResults,
+            LayerMask collisionMask,
+            QueryTriggerInteraction queryTriggerInteraction);
+
         #endregion
 
         #region Internal Methods

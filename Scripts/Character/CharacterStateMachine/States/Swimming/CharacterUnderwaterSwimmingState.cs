@@ -44,7 +44,15 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
 
         protected override void OnFixedUpdate(float fixedDeltaTime)
         {
-            _context.SwimmingMovement.MoveUnderwater(fixedDeltaTime);
+            if (_context.WaterSensor.IsSufficientlyImmersed)
+            {
+                _context.SwimmingMovement.MoveUnderwater(fixedDeltaTime);
+            }
+            else
+            {
+                _context.SwimmingMovement.MoveForTerrestrialExitRecovery(fixedDeltaTime);
+            }
+
             float currentSpeedMetersPerSecond = _context.SwimmingMovement.CurrentSpeedMetersPerSecond;
             _context.Animator.UpdateLocomotionAnimationParameter(currentSpeedMetersPerSecond);
             _context.Animator.UpdateTransitionMixerParameter(currentSpeedMetersPerSecond);

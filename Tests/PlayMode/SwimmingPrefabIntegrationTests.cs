@@ -12,6 +12,8 @@ namespace PhysicsCharacterController.Tests.PlayMode
     public sealed class SwimmingPrefabIntegrationTests
     {
         private const float TEST_POOL_ROOT_HEIGHT_METERS = 1000f;
+        private const float EXIT_RECOVERY_SPEED_METERS_PER_SECOND = 4f;
+        private const int MAXIMUM_EXIT_RECOVERY_FIXED_STEPS = 40;
 
         private IObjectResolver _container;
         private AsyncOperationHandle<GameObject> _playerPrefabHandle;
@@ -271,6 +273,151 @@ namespace PhysicsCharacterController.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator LeavingWaterNearPoolFloor_RecoversSmoothlyAndRestoresTerrestrialControl()
+        {
+            PlaceCharacter(new Vector3(0f, _testPoolSurfaceHeightMeters - 2f, 0f));
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+            Assert.That(_underwaterCollider.IsActive, Is.True);
+
+            Vector3 blockedExitPosition = new Vector3(
+                0f,
+                _testPoolFloorTopHeightMeters + 0.46f,
+                -4.55f);
+            PlaceCharacter(blockedExitPosition);
+
+            bool wasRecoveryObserved = false;
+            CharacterColliderShape[] colliderShapes =
+                _underwaterCollider.GetComponentsInChildren<CharacterColliderShape>(true);
+            for (int fixedStepIndex = 0;
+                 fixedStepIndex < MAXIMUM_EXIT_RECOVERY_FIXED_STEPS && _underwaterCollider.IsActive;
+                 fixedStepIndex++)
+            {
+                Vector3 previousPosition = _underwaterCollider.transform.position;
+                yield return new WaitForFixedUpdate();
+
+                float displacementMeters = Vector3.Distance(
+                    previousPosition,
+                    _underwaterCollider.transform.position);
+                float maximumStepDistanceMeters = EXIT_RECOVERY_SPEED_METERS_PER_SECOND
+                    * Time.fixedDeltaTime
+                    + 0.01f;
+                Assert.That(displacementMeters, Is.LessThanOrEqualTo(maximumStepDistanceMeters));
+                Assert.That(CountEnabledColliderShapes(colliderShapes), Is.EqualTo(1));
+                wasRecoveryObserved |= _underwaterCollider.IsTerrestrialExitRecoveryActive;
+            }
+
+            CharacterWaterSensor waterSensor = _underwaterCollider.GetComponent<CharacterWaterSensor>();
+            Assert.That(wasRecoveryObserved, Is.True);
+            Assert.That(waterSensor.IsSufficientlyImmersed, Is.False);
+            Assert.That(_underwaterCollider.IsActive, Is.False);
+            Assert.That(_underwaterCollider.transform.position.y, Is.GreaterThan(blockedExitPosition.y + 0.4f));
+            Assert.That(_underwaterCollider.GetComponent<CharacterColliderShape>().IsPhysicsEnabled, Is.True);
+            Assert.That(_underwaterCollider.GetComponent<BaseCharacterInput>().AreTerrestrialActionsEnabled, Is.True);
+            Assert.That(CountEnabledColliderShapes(colliderShapes), Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator LosingWaterNearFloorAndWall_UsesContactNormalForDiagonalRecovery()
+        {
+            PlaceCharacter(new Vector3(0f, _testPoolSurfaceHeightMeters - 2f, 0f));
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+            Assert.That(_underwaterCollider.IsActive, Is.True);
+
+            Vector3 blockedExitPosition = new Vector3(
+                -1.36f,
+                _testPoolFloorTopHeightMeters + 0.46f,
+                0f);
+            PlaceCharacter(blockedExitPosition);
+            _waterVolume.GetComponent<Collider>().enabled = false;
+            Physics.SyncTransforms();
+
+            for (int fixedStepIndex = 0;
+                 fixedStepIndex < MAXIMUM_EXIT_RECOVERY_FIXED_STEPS && _underwaterCollider.IsActive;
+                 fixedStepIndex++)
+            {
+                yield return new WaitForFixedUpdate();
+            }
+
+            Vector3 recoveredPosition = _underwaterCollider.transform.position;
+            Assert.That(_underwaterCollider.IsActive, Is.False);
+            Assert.That(recoveredPosition.y, Is.GreaterThan(blockedExitPosition.y + 0.4f));
+            Assert.That(recoveredPosition.x, Is.GreaterThan(blockedExitPosition.x + 0.01f));
+            Assert.That(_underwaterCollider.GetComponent<BaseCharacterInput>().AreTerrestrialActionsEnabled, Is.True);
+        }
+
+        [Test]
+        public void TerrestrialExitRecovery_InFullyConstrainedSpace_RetainsUnderwaterControlAndCollider()
+        {
+            Vector3 blockedExitPosition = new Vector3(
+                0f,
+                _testPoolFloorTopHeightMeters + 0.46f,
+                -4.55f);
+            PlaceCharacter(blockedExitPosition);
+            Assert.That(_underwaterCollider.TryActivate(Vector3.forward), Is.True);
+            Transform lowOverhang = _poolInstance.transform.Find("Low Overhang");
+            lowOverhang.position = blockedExitPosition + Vector3.up * 0.9f;
+            lowOverhang.localScale = new Vector3(10f, 0.4f, 10f);
+            Physics.SyncTransforms();
+
+            bool didBeginRecovery = _underwaterCollider.TryBeginTerrestrialExitRecovery();
+
+            CharacterColliderShape[] colliderShapes =
+                _underwaterCollider.GetComponentsInChildren<CharacterColliderShape>(true);
+            Assert.That(didBeginRecovery, Is.False);
+            Assert.That(_underwaterCollider.IsTerrestrialExitRecoveryActive, Is.False);
+            Assert.That(_underwaterCollider.IsActive, Is.True);
+            Assert.That(CountEnabledColliderShapes(colliderShapes), Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator MovingObstruction_InvalidatesRecoveryTargetAndReplansAfterClearanceReturns()
+        {
+            PlaceCharacter(new Vector3(0f, _testPoolSurfaceHeightMeters - 2f, 0f));
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+
+            Vector3 blockedExitPosition = new Vector3(
+                0f,
+                _testPoolFloorTopHeightMeters + 0.46f,
+                -4.55f);
+            PlaceCharacter(blockedExitPosition);
+            for (int fixedStepIndex = 0;
+                 fixedStepIndex < MAXIMUM_EXIT_RECOVERY_FIXED_STEPS
+                 && !_underwaterCollider.IsTerrestrialExitRecoveryActive;
+                 fixedStepIndex++)
+            {
+                yield return new WaitForFixedUpdate();
+            }
+            Assert.That(_underwaterCollider.IsTerrestrialExitRecoveryActive, Is.True);
+
+            Transform lowOverhang = _poolInstance.transform.Find("Low Overhang");
+            lowOverhang.position = _underwaterCollider.transform.position + Vector3.up * 0.9f;
+            lowOverhang.localScale = new Vector3(3f, 0.4f, 3f);
+            Physics.SyncTransforms();
+            yield return new WaitForFixedUpdate();
+
+            Assert.That(_underwaterCollider.IsActive, Is.True);
+            Assert.That(_underwaterCollider.IsTerrestrialExitRecoveryActive, Is.False);
+
+            lowOverhang.position = Vector3.right * 20f + Vector3.up * TEST_POOL_ROOT_HEIGHT_METERS;
+            Physics.SyncTransforms();
+            for (int fixedStepIndex = 0;
+                 fixedStepIndex < MAXIMUM_EXIT_RECOVERY_FIXED_STEPS && _underwaterCollider.IsActive;
+                 fixedStepIndex++)
+            {
+                yield return new WaitForFixedUpdate();
+            }
+
+            Assert.That(_underwaterCollider.IsActive, Is.False);
+            Assert.That(_underwaterCollider.GetComponent<BaseCharacterInput>().AreTerrestrialActionsEnabled, Is.True);
+        }
+
+        [UnityTest]
         public IEnumerator HorizontalUnderwaterExit_PreservesSwimmingWorldHeadingDuringUprightHandoff()
         {
             PlaceCharacter(new Vector3(0f, _testPoolSurfaceHeightMeters - 2f, 0f));
@@ -349,6 +496,7 @@ namespace PhysicsCharacterController.Tests.PlayMode
 
             Assert.That(didDeactivate, Is.False);
             Assert.That(_underwaterCollider.IsActive, Is.True);
+            Assert.That(_underwaterCollider.IsTerrestrialExitRecoveryActive, Is.False);
         }
 
         [Test]

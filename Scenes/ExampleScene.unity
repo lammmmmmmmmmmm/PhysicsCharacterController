@@ -2463,6 +2463,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: SwimmingPool
       objectReference: {fileID: 0}
+    - target: {fileID: 2526162420816353230, guid: 12a77f2ac7e519d4a881b87aa61915a9, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2526162420816353230, guid: 12a77f2ac7e519d4a881b87aa61915a9, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5098489585341712373, guid: 12a77f2ac7e519d4a881b87aa61915a9, type: 3}
       propertyPath: m_LocalPosition.x
       value: -33.55
@@ -4450,10 +4458,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fc9b0e28ddc8715409443999323395dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _input: {fileID: 1042393910}
-  _characterCamera: {fileID: 0}
-  _characterParent: {fileID: 1042393894}
-  _rotationSmoothingDurationSeconds: 0.1
+  _turnSpeedDegreesPerSecond: 540
 --- !u!114 &1042393896
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4826,7 +4831,7 @@ MonoBehaviour:
   _characterGravity: {fileID: 1042393896}
   _groundChecker: {fileID: 1042393904}
   _input: {fileID: 0}
-  _characterRotation: {fileID: 0}
+  _characterRotationPolicy: {fileID: 0}
   _waterSensor: {fileID: 0}
   _swimmingMovement: {fileID: 0}
   _characterAnimator: {fileID: 0}
@@ -10065,14 +10070,6 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 2309854491200430449, guid: c47a17ba764f3ef4db5fff99e93df6c6, type: 3}
-      propertyPath: m_TagString
-      value: Player
-      objectReference: {fileID: 0}
-    - target: {fileID: 2315718212141345392, guid: c47a17ba764f3ef4db5fff99e93df6c6, type: 3}
-      propertyPath: _touchLookInput
-      value: 
-      objectReference: {fileID: 8426860329496925151}
     - target: {fileID: 3139864714966188544, guid: c47a17ba764f3ef4db5fff99e93df6c6, type: 3}
       propertyPath: CollideAgainst.m_Bits
       value: 9
@@ -10165,10 +10162,6 @@ PrefabInstance:
       propertyPath: _touchJoystickInput
       value: 
       objectReference: {fileID: 2544003022429517301}
-    - target: {fileID: 9110861643693614381, guid: c47a17ba764f3ef4db5fff99e93df6c6, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: -90
-      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 107957789511384848, guid: c47a17ba764f3ef4db5fff99e93df6c6, type: 3}

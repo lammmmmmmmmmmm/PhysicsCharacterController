@@ -24,6 +24,11 @@ MonoBehaviour:
   _decelerationMetersPerSecondSquared: 8
   _movementInputThreshold: 0.01
   _collisionSweepSkinMeters: 0.05
+  _exitRecoveryMaximumDistanceMeters: 2
+  _exitRecoveryProbeIntervalMeters: 0.1
+  _exitRecoverySpeedMetersPerSecond: 4
+  _exitRecoveryMaximumDepenetrationIterations: 4
+  _exitRecoveryHorizontalDirectionCount: 8
   _yawSpeedDegreesPerSecond: 360
   _pitchSpeedDegreesPerSecond: 180
   _underwaterColliderRotationSpeedDegreesPerSecond: 360

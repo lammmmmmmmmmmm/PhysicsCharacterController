@@ -41,6 +41,32 @@ namespace PhysicsCharacterController
                 queryTriggerInteraction);
         }
 
+        public override int CastAtPoseNonAlloc(
+            Vector3 worldPosition,
+            Quaternion worldRotation,
+            Vector3 worldDirection,
+            float distanceMeters,
+            RaycastHit[] castResults,
+            LayerMask collisionMask,
+            QueryTriggerInteraction queryTriggerInteraction)
+        {
+            BoxColliderGeometry geometry = _geometryCalculator.Calculate(
+                worldPosition,
+                worldRotation,
+                _boxCollider.transform.lossyScale,
+                _boxCollider.center,
+                _boxCollider.size);
+            return Physics.BoxCastNonAlloc(
+                geometry.Center,
+                geometry.HalfExtentsMeters,
+                worldDirection,
+                castResults,
+                geometry.Rotation,
+                distanceMeters,
+                collisionMask,
+                queryTriggerInteraction);
+        }
+
         #endregion
 
         #region Private Methods

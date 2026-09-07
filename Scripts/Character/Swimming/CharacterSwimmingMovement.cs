@@ -22,6 +22,7 @@ namespace PhysicsCharacterController
         public float CurrentSpeedMetersPerSecond { get; private set; }
         public Vector3 RequestedDirection { get; private set; }
         public float SurfaceTargetRootHeightMeters => _waterSensor.WaterSurfaceHeightMeters - _settingsSO.SurfaceRootDepthMeters;
+        public bool IsTerrestrialExitRecoveryActive => _underwaterCollider.IsTerrestrialExitRecoveryActive;
 
         #region Public Methods
 
@@ -70,6 +71,34 @@ namespace PhysicsCharacterController
             }
 
             return true;
+        }
+
+        public bool TryBeginTerrestrialExitRecovery()
+        {
+            return _underwaterCollider.TryBeginTerrestrialExitRecovery();
+        }
+
+        public void MoveForTerrestrialExitRecovery(float fixedDeltaTime)
+        {
+            if (!_underwaterCollider.AdvanceTerrestrialExitRecovery(fixedDeltaTime))
+            {
+                MoveUnderwater(fixedDeltaTime);
+                return;
+            }
+
+            RequestedDirection = _underwaterCollider.TerrestrialExitRecoveryDirection;
+            UpdateAnimationSpeed(RequestedDirection.magnitude, _settingsSO.ExitRecoverySpeedMetersPerSecond, fixedDeltaTime);
+            float swimmingAnimationBlend01 = CurrentSpeedMetersPerSecond / _settingsSO.NormalSpeedMetersPerSecond;
+            _visualOrientation.AlignToColliderRotation(
+                _underwaterCollider.AcceptedRotation,
+                _rigidbody.rotation,
+                swimmingAnimationBlend01,
+                fixedDeltaTime);
+        }
+
+        public void CancelTerrestrialExitRecovery()
+        {
+            _underwaterCollider.CancelTerrestrialExitRecovery();
         }
 
         public void MoveAtSurface(float fixedDeltaTime)
@@ -137,6 +166,7 @@ namespace PhysicsCharacterController
 
         public void ResetMovement()
         {
+            CancelTerrestrialExitRecovery();
             CurrentSpeedMetersPerSecond = 0f;
             RequestedDirection = Vector3.zero;
             _visualOrientation.ResetImmediately();

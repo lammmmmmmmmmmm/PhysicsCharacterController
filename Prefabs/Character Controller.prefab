@@ -511,6 +511,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 73
   _rigidbody: {fileID: 7698808979737546365}
+  _settingsSO: {fileID: 11400000, guid: 618ab0b01f7266245abf87f1ad120688, type: 2}
 --- !u!114 &6566680108622118817
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -554,7 +555,7 @@ GameObject:
   - component: {fileID: 2158423678515387218}
   m_Layer: 0
   m_Name: Underwater Collider Pivot
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

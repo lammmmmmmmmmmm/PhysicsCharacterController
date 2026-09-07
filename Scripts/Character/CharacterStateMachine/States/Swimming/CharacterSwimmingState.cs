@@ -34,7 +34,13 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
 
         protected override State GetTransition()
         {
-            if (_context.WaterSensor.IsSufficientlyImmersed || !TryPrepareTerrestrialExit())
+            if (_context.WaterSensor.IsSufficientlyImmersed)
+            {
+                _context.SwimmingMovement.CancelTerrestrialExitRecovery();
+                return null;
+            }
+
+            if (!TryPrepareTerrestrialExit())
             {
                 return null;
             }
@@ -62,11 +68,17 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
                 return true;
             }
 
+            if (_context.SwimmingMovement.IsTerrestrialExitRecoveryActive
+                || _context.SwimmingMovement.TryBeginTerrestrialExitRecovery())
+            {
+                return false;
+            }
+
             if (Time.time >= _nextBlockedExitWarningTimeSeconds)
             {
                 Debug.LogWarning(
-                    "Swimming exit is deferred because the upright character capsule is obstructed. " +
-                    "Swimming control remains active until the character reaches clear space.");
+                    "Swimming exit recovery could not find a nearby collision-free upright pose. " +
+                    "Swimming remains active until space becomes available.");
                 _nextBlockedExitWarningTimeSeconds = Time.time + BLOCKED_EXIT_WARNING_INTERVAL_SECONDS;
             }
 
