@@ -14,6 +14,13 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
 
         protected override State GetTransition()
         {
+            if (_context.CharacterJump.TryExecuteWaterSurfaceJump())
+            {
+                _context.SwimmingMovement.BeginWaterSurfaceJumpReentrySuppression();
+                CharacterRootState rootState = (CharacterRootState)Parent.Parent;
+                return rootState.Terrestrial.Airborne;
+            }
+
             if (_context.SwimmingMovement.ShouldDive() && _context.SwimmingMovement.TryEnterUnderwater())
             {
                 return ((CharacterSwimmingState)Parent).Underwater;
@@ -24,11 +31,18 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
 
         protected override void OnEnter()
         {
+            _context.Input.SetWaterSurfaceJumpsEnabled(true);
             _context.CharacterRotationPolicy.SetAutomaticRotationEnabled(true);
+            _context.SwimmingMovement.BeginSurfaceVisualHandoff(UnityEngine.Time.fixedDeltaTime);
             _context.Animator.SetBase(
                 _context.SurfaceSwimmingAnimationData.LocomotionMixer,
                 _context.SurfaceSwimmingStateId,
                 _context.SwimmingMovement.CurrentSpeedMetersPerSecond);
+        }
+
+        protected override void OnExit()
+        {
+            _context.Input.SetWaterSurfaceJumpsEnabled(false);
         }
 
         protected override void OnFixedUpdate(float fixedDeltaTime)

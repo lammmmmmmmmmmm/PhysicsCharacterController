@@ -39,6 +39,11 @@ namespace PhysicsCharacterController
             return inputMagnitude > movementInputThreshold && requestedDirectionY <= diveDirectionYThreshold;
         }
 
+        public bool ShouldDiveWithDiveButton(bool isDiveRequested)
+        {
+            return isDiveRequested;
+        }
+
         public bool ShouldReturnToSurface(
             float characterRootHeightMeters,
             float surfaceTargetRootHeightMeters,
@@ -49,6 +54,21 @@ namespace PhysicsCharacterController
             bool isAtSurface = characterRootHeightMeters >= surfaceTargetRootHeightMeters - surfaceToleranceMeters;
             bool isStillDiving = requestedDirectionY <= diveDirectionYThreshold;
             return isAtSurface && !isStillDiving;
+        }
+
+        public bool ShouldReturnToSurfaceWithDiveButton(
+            float characterRootHeightMeters,
+            float surfaceTargetRootHeightMeters,
+            bool isDiveRequested,
+            float surfaceToleranceMeters)
+        {
+            bool isAtSurface = characterRootHeightMeters >= surfaceTargetRootHeightMeters - surfaceToleranceMeters;
+            return isAtSurface && !isDiveRequested;
+        }
+
+        public bool ShouldSuppressSwimmingEntryAfterWaterSurfaceJump(bool hasWaterVolume, float verticalSpeedMetersPerSecond)
+        {
+            return hasWaterVolume && verticalSpeedMetersPerSecond > 0f;
         }
     }
 }

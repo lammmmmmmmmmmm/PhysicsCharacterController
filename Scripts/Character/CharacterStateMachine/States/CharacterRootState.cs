@@ -19,7 +19,8 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
 
         protected override State GetInitialState()
         {
-            return _context.WaterSensor.IsSwimmingEntryThresholdReached
+            _context.SwimmingMovement.RefreshWaterSurfaceJumpReentrySuppression();
+            return _context.SwimmingMovement.CanEnterSwimming
                 ? Swimming
                 : Terrestrial;
         }

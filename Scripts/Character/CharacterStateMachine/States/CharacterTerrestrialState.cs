@@ -24,7 +24,8 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
 
         protected override State GetTransition()
         {
-            return _context.WaterSensor.IsSwimmingEntryThresholdReached
+            _context.SwimmingMovement.RefreshWaterSurfaceJumpReentrySuppression();
+            return _context.SwimmingMovement.CanEnterSwimming
                 ? ((CharacterRootState)Parent).Swimming
                 : null;
         }
@@ -33,7 +34,7 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
         {
             // A transition requested during this tick enters swimming immediately. Do not let the
             // outgoing terrestrial branch reapply gravity after swimming has stopped the fall.
-            if (_context.WaterSensor.IsSwimmingEntryThresholdReached)
+            if (_context.SwimmingMovement.CanEnterSwimming)
             {
                 return;
             }

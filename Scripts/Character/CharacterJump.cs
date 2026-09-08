@@ -29,10 +29,10 @@ namespace PhysicsCharacterController
         public float CurrentJumpForce { get; set; }
 
         private Rigidbody _rigidbody;
-
         private float _jumpBufferTimer;
         private bool _hasJumpRequested;
         private bool _hasJumpBuffered;
+        private bool _hasWaterSurfaceJumpRequested;
         private bool _hasCoyoteTime;
         private float _coyoteTimeCounter;
 
@@ -43,6 +43,8 @@ namespace PhysicsCharacterController
             _groundChecker.WasGrounded &&
             _rigidbody.linearVelocity.y < -0.5f &&
             !_slopeChecker.WasLastGroundedSurfaceUnclimbable;
+
+        #region Unity Lifecycle
 
         private void Awake()
         {
@@ -55,6 +57,7 @@ namespace PhysicsCharacterController
             _input.OnJumpPressed += HandleJumpInput;
             _input.OnNormalActionsAvailabilityChanged += CancelPendingJumpWhenActionsBecomeUnavailable;
             _input.OnTerrestrialActionsAvailabilityChanged += CancelPendingJumpWhenActionsBecomeUnavailable;
+            _input.OnWaterSurfaceJumpsAvailabilityChanged += CancelPendingWaterSurfaceJumpWhenUnavailable;
         }
 
         private void OnDisable()
@@ -62,32 +65,23 @@ namespace PhysicsCharacterController
             _input.OnJumpPressed -= HandleJumpInput;
             _input.OnNormalActionsAvailabilityChanged -= CancelPendingJumpWhenActionsBecomeUnavailable;
             _input.OnTerrestrialActionsAvailabilityChanged -= CancelPendingJumpWhenActionsBecomeUnavailable;
+            _input.OnWaterSurfaceJumpsAvailabilityChanged -= CancelPendingWaterSurfaceJumpWhenUnavailable;
         }
 
-        private void HandleJumpInput()
-        {
-            if (CanJumpNow())
-            {
-                _hasJumpRequested = true;
-            }
-            else if (!_groundChecker.IsGrounded)
-            {
-                _hasJumpBuffered = true;
-                _jumpBufferTimer = 0f;
-            }
-        }
+        #endregion
 
-        private void CancelPendingJumpWhenActionsBecomeUnavailable(bool areNormalActionsEnabled)
+        #region Public Methods
+
+        public bool TryExecuteWaterSurfaceJump()
         {
-            if (areNormalActionsEnabled)
+            if (!_hasWaterSurfaceJumpRequested)
             {
-                return;
+                return false;
             }
 
-            _hasJumpRequested = false;
-            _hasCoyoteTime = false;
-            _coyoteTimeCounter = 0f;
-            ResetJumpBuffer();
+            ExecuteJump();
+            ResetAllPendingJumpRequests();
+            return true;
         }
 
         public bool TryExecuteJump()
@@ -108,11 +102,75 @@ namespace PhysicsCharacterController
             }
 
             ExecuteJump();
-            _hasJumpRequested = false;
-            _hasCoyoteTime = false;
-            _coyoteTimeCounter = 0f;
-            ResetJumpBuffer();
+            ResetAllPendingJumpRequests();
             return true;
+        }
+
+        public void HandleJumpBuffer(float deltaTime)
+        {
+            UpdateJumpBufferTimer(deltaTime);
+            ClearExpiredBufferOnLanding();
+        }
+
+        public void HandleCoyoteTime(float deltaTime)
+        {
+            if (ShouldStartCoyoteTime)
+            {
+                _hasCoyoteTime = true;
+                _coyoteTimeCounter = _coyoteTime;
+            }
+
+            if (!_hasCoyoteTime)
+            {
+                return;
+            }
+
+            _coyoteTimeCounter -= deltaTime;
+
+            if (_coyoteTimeCounter <= 0f)
+            {
+                _hasCoyoteTime = false;
+                _coyoteTimeCounter = 0f;
+            }
+        }
+
+        #endregion
+
+        #region Private Methods
+
+        private void HandleJumpInput()
+        {
+            if (_input.AreWaterSurfaceJumpsEnabled)
+            {
+                _hasWaterSurfaceJumpRequested = true;
+                return;
+            }
+
+            if (CanJumpNow())
+            {
+                _hasJumpRequested = true;
+            }
+            else if (!_groundChecker.IsGrounded)
+            {
+                _hasJumpBuffered = true;
+                _jumpBufferTimer = 0f;
+            }
+        }
+
+        private void CancelPendingJumpWhenActionsBecomeUnavailable(bool areActionsEnabled)
+        {
+            if (!areActionsEnabled)
+            {
+                ResetAllPendingJumpRequests();
+            }
+        }
+
+        private void CancelPendingWaterSurfaceJumpWhenUnavailable(bool areWaterSurfaceJumpsEnabled)
+        {
+            if (!areWaterSurfaceJumpsEnabled)
+            {
+                _hasWaterSurfaceJumpRequested = false;
+            }
         }
 
         private bool CanJumpNow()
@@ -139,12 +197,6 @@ namespace PhysicsCharacterController
             }
         }
 
-        public void HandleJumpBuffer(float deltaTime)
-        {
-            UpdateJumpBufferTimer(deltaTime);
-            ClearExpiredBufferOnLanding();
-        }
-
         private void UpdateJumpBufferTimer(float deltaTime)
         {
             if (!_hasJumpBuffered || _groundChecker.IsGrounded)
@@ -162,12 +214,24 @@ namespace PhysicsCharacterController
 
         private void ClearExpiredBufferOnLanding()
         {
-            if (!_groundChecker.JustLanded) return;
+            if (!_groundChecker.JustLanded)
+            {
+                return;
+            }
 
             if (!_hasJumpBuffered || _jumpBufferTimer > _jumpBufferTime)
             {
                 ResetJumpBuffer();
             }
+        }
+
+        private void ResetAllPendingJumpRequests()
+        {
+            _hasJumpRequested = false;
+            _hasWaterSurfaceJumpRequested = false;
+            _hasCoyoteTime = false;
+            _coyoteTimeCounter = 0f;
+            ResetJumpBuffer();
         }
 
         private void ResetJumpBuffer()
@@ -184,23 +248,6 @@ namespace PhysicsCharacterController
                 _rigidbody.linearVelocity.z);
         }
 
-        public void HandleCoyoteTime(float deltaTime)
-        {
-            if (ShouldStartCoyoteTime)
-            {
-                _hasCoyoteTime = true;
-                _coyoteTimeCounter = _coyoteTime;
-            }
-
-            if (!_hasCoyoteTime) return;
-
-            _coyoteTimeCounter -= deltaTime;
-
-            if (_coyoteTimeCounter <= 0f)
-            {
-                _hasCoyoteTime = false;
-                _coyoteTimeCounter = 0f;
-            }
-        }
+        #endregion
     }
 }

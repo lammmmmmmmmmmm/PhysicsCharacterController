@@ -52,7 +52,7 @@ namespace HSM
             if (transition != null)
             {
                 Machine.Sequencer.RequestTransition(this, transition);
-                // return; Why do we need to return here? Don't we want to apply the transition immediately and then tick the new state in the same frame?
+                return;
             }
 
             ActiveChild?.Update(deltaTime);
@@ -65,7 +65,7 @@ namespace HSM
             if (transition != null)
             {
                 Machine.Sequencer.RequestTransition(this, transition);
-                // return; Why do we need to return here? Don't we want to apply the transition immediately and then tick the new state in the same frame?
+                return;
             }
 
             ActiveChild?.FixedUpdate(fixedDeltaTime);

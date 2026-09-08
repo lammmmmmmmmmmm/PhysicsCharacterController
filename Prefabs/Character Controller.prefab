@@ -312,10 +312,11 @@ MonoBehaviour:
   _jumpAction: {fileID: -3541802990452617309, guid: 010bd85fdf203f34d94abf6f5ad3e876, type: 3}
   _sprintAction: {fileID: 5305346917543414694, guid: 010bd85fdf203f34d94abf6f5ad3e876, type: 3}
   _crouchAction: {fileID: 6499772605015659939, guid: 010bd85fdf203f34d94abf6f5ad3e876, type: 3}
-  _touchJoystickInput: {fileID: 0}
+  _diveAction: {fileID: -1257999864957079882, guid: 010bd85fdf203f34d94abf6f5ad3e876, type: 3}
   _enableJump: 1
   _enableCrouch: 1
   _enableSprint: 1
+  _enableDive: 1
 --- !u!114 &7636482674149424828
 MonoBehaviour:
   m_ObjectHideFlags: 0

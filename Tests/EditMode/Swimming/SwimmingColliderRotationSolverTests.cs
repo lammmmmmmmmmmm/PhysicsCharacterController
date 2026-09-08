@@ -49,5 +49,63 @@ namespace PhysicsCharacterController.Tests
 
             Assert.That(Quaternion.Angle(firstRotation, secondRotation), Is.LessThan(0.001f));
         }
+
+        [Test]
+        public void CalculateDirectionalTransitionTargetRotation_IdleSurfaceDive_UsesCharacterForwardAsUpDirection()
+        {
+            Quaternion rotation = _solver.CalculateDirectionalTransitionTargetRotation(
+                Vector3.down,
+                Vector3.back,
+                Vector3.forward);
+
+            Assert.That(rotation * Vector3.forward, Is.EqualTo(Vector3.down).Using(Vector3ComparerWithEqualsOperator.Instance));
+            Assert.That(rotation * Vector3.up, Is.EqualTo(Vector3.forward).Using(Vector3ComparerWithEqualsOperator.Instance));
+        }
+
+        [Test]
+        public void CalculateDirectionalTransitionTargetRotation_AutomaticAscent_UsesCharacterBackwardAsUpDirection()
+        {
+            Quaternion rotation = _solver.CalculateDirectionalTransitionTargetRotation(
+                Vector3.up,
+                Vector3.forward,
+                Vector3.forward);
+
+            Assert.That(rotation * Vector3.forward, Is.EqualTo(Vector3.up).Using(Vector3ComparerWithEqualsOperator.Instance));
+            Assert.That(rotation * Vector3.up, Is.EqualTo(Vector3.back).Using(Vector3ComparerWithEqualsOperator.Instance));
+        }
+
+        [Test]
+        public void CalculateDirectionalTransitionTargetRotation_HorizontalDirection_PreservesCurrentUpDirection()
+        {
+            Quaternion rotation = _solver.CalculateDirectionalTransitionTargetRotation(
+                Vector3.right,
+                Vector3.up,
+                Vector3.forward);
+
+            Assert.That(rotation * Vector3.forward, Is.EqualTo(Vector3.right).Using(Vector3ComparerWithEqualsOperator.Instance));
+            Assert.That(rotation * Vector3.up, Is.EqualTo(Vector3.up).Using(Vector3ComparerWithEqualsOperator.Instance));
+        }
+
+        [Test]
+        public void CalculateReverseDivePitchAscentStep_FromHeadDown_RetracesTowardOriginalUprightRotation()
+        {
+            Quaternion headDownRotation = _solver.CalculateDirectionalTransitionTargetRotation(
+                Vector3.down,
+                Vector3.back,
+                Vector3.forward);
+
+            Quaternion halfwayRotation = _solver.CalculateReverseDivePitchAscentStep(
+                headDownRotation,
+                Vector3.right,
+                90f);
+            Quaternion uprightRotation = _solver.CalculateReverseDivePitchAscentStep(
+                halfwayRotation,
+                Vector3.right,
+                90f);
+
+            Assert.That(halfwayRotation * Vector3.forward, Is.EqualTo(Vector3.forward).Using(Vector3ComparerWithEqualsOperator.Instance));
+            Assert.That(halfwayRotation * Vector3.right, Is.EqualTo(Vector3.right).Using(Vector3ComparerWithEqualsOperator.Instance));
+            Assert.That(uprightRotation * Vector3.forward, Is.EqualTo(Vector3.up).Using(Vector3ComparerWithEqualsOperator.Instance));
+        }
     }
 }

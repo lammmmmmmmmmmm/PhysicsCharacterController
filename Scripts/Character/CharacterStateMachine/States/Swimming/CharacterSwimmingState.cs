@@ -62,12 +62,15 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
             _isShallowWaterExitRecoveryActive = false;
             _context.SwimmingMovement.BeginSwimmingEntryVelocityDamping();
             _context.Input.SetTerrestrialActionsEnabled(false);
+            _context.Input.SetDiveActionEnabled(_context.SwimmingMovement.UsesDiveButtonControl);
             _context.CharacterCrouch.ApplyStandState();
         }
 
         protected override void OnExit()
         {
             _isShallowWaterExitRecoveryActive = false;
+            _context.Input.SetWaterSurfaceJumpsEnabled(false);
+            _context.Input.SetDiveActionEnabled(false);
             _context.Input.SetTerrestrialActionsEnabled(true);
             _context.CharacterRotationPolicy.SetAutomaticRotationEnabled(true);
             _context.SwimmingMovement.ResetMovement();

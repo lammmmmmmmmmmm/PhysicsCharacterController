@@ -18,6 +18,23 @@ namespace PhysicsCharacterController
             return Vector3.ClampMagnitude(forward * movementInput.y + right * movementInput.x, 1f);
         }
 
+        public Vector3 CalculateDiveButtonTargetVelocity(
+            Vector2 movementInput,
+            Vector3 cameraForward,
+            Vector3 cameraRight,
+            float horizontalSpeedMetersPerSecond,
+            bool isDiveRequested,
+            float diveSpeedMetersPerSecond,
+            float automaticFloatSpeedMetersPerSecond)
+        {
+            Vector3 horizontalDirection = CalculateSurfaceDirection(movementInput, cameraForward, cameraRight);
+            float verticalSpeedMetersPerSecond = isDiveRequested
+                ? -Mathf.Max(0f, diveSpeedMetersPerSecond)
+                : Mathf.Max(0f, automaticFloatSpeedMetersPerSecond);
+            return horizontalDirection * Mathf.Max(0f, horizontalSpeedMetersPerSecond)
+                   + Vector3.up * verticalSpeedMetersPerSecond;
+        }
+
         public Vector3 DampVerticalVelocityTowards(
             Vector3 currentVelocityMetersPerSecond,
             float targetVerticalVelocityMetersPerSecond,

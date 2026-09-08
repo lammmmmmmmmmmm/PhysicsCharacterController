@@ -5,6 +5,16 @@ namespace PhysicsCharacterController
     [CreateAssetMenu(fileName = "Swimming Movement Settings", menuName = "Character Movement/Swimming Movement Settings")]
     public sealed class SwimmingMovementSettingsSO : ScriptableObject
     {
+        [Header("Control")]
+        [Tooltip("Determines whether vertical swimming follows camera pitch or the dedicated Dive action.")]
+        [SerializeField] private SwimmingControlMode _controlMode = SwimmingControlMode.CameraDirected;
+        [Tooltip("Downward speed while the Dive action is held in Dive Button mode.")]
+        [Min(0f)]
+        [SerializeField] private float _diveSpeedMetersPerSecond = 3f;
+        [Tooltip("Upward speed while the Dive action is released in Dive Button mode.")]
+        [Min(0f)]
+        [SerializeField] private float _automaticFloatSpeedMetersPerSecond = 2f;
+
         [Header("State Thresholds")]
         [Tooltip("Standing-collider immersion required to enter swimming.")]
         [Range(0f, 1f)]
@@ -59,6 +69,9 @@ namespace PhysicsCharacterController
         [SerializeField] private float _pitchSpeedDegreesPerSecond = 180f;
         [SerializeField] private float _underwaterColliderRotationSpeedDegreesPerSecond = 360f;
 
+        public SwimmingControlMode ControlMode => _controlMode;
+        public float DiveSpeedMetersPerSecond => _diveSpeedMetersPerSecond;
+        public float AutomaticFloatSpeedMetersPerSecond => _automaticFloatSpeedMetersPerSecond;
         public float EnterSwimmingImmersion01 => _enterSwimmingImmersion01;
         public float ExitSwimmingImmersion01 => _exitSwimmingImmersion01;
         public float DiveDirectionYThreshold => _diveDirectionYThreshold;
@@ -81,5 +94,14 @@ namespace PhysicsCharacterController
         public float YawSpeedDegreesPerSecond => _yawSpeedDegreesPerSecond;
         public float PitchSpeedDegreesPerSecond => _pitchSpeedDegreesPerSecond;
         public float UnderwaterColliderRotationSpeedDegreesPerSecond => _underwaterColliderRotationSpeedDegreesPerSecond;
+
+        #region Public Methods
+
+        public void SetControlMode(SwimmingControlMode controlMode)
+        {
+            _controlMode = controlMode;
+        }
+
+        #endregion
     }
 }

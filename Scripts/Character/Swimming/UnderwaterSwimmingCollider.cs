@@ -34,6 +34,7 @@ namespace PhysicsCharacterController
 
         private Vector3 _recoveryTargetRootPosition;
         private Quaternion _defaultLocalRotation;
+        private bool _isReverseDivePitchAscentActive;
 
         public bool IsActive => _underwaterCollider.IsPhysicsEnabled;
         public Vector3 AcceptedDirection => _underwaterColliderPivot.forward;
@@ -58,10 +59,14 @@ namespace PhysicsCharacterController
         public bool TryActivate(Vector3 worldDirection)
         {
             CancelTerrestrialExitRecovery();
+            _isReverseDivePitchAscentActive = false;
             Quaternion candidateRotation = _underwaterColliderPivot.rotation;
             if (worldDirection.sqrMagnitude > Mathf.Epsilon)
             {
-                candidateRotation = _rotationSolver.CalculateTargetRotation(worldDirection.normalized, _underwaterColliderPivot.up);
+                candidateRotation = _rotationSolver.CalculateDirectionalTransitionTargetRotation(
+                    worldDirection,
+                    _underwaterColliderPivot.up,
+                    _rigidbody.rotation * Vector3.forward);
             }
 
             if (!IsColliderPoseClear(_underwaterCollider, candidateRotation))
@@ -82,11 +87,14 @@ namespace PhysicsCharacterController
                 return false;
             }
 
-            Quaternion targetRotation = _rotationSolver.CalculateTargetRotation(worldDirection, _underwaterColliderPivot.up);
-            Quaternion candidateRotation = Quaternion.RotateTowards(
-                _underwaterColliderPivot.rotation,
-                targetRotation,
-                rotationSpeedDegreesPerSecond * fixedDeltaTime);
+            UpdateReverseDivePitchAscentState(worldDirection);
+            float maximumRotationDegrees = rotationSpeedDegreesPerSecond * fixedDeltaTime;
+            Quaternion candidateRotation = _isReverseDivePitchAscentActive
+                ? _rotationSolver.CalculateReverseDivePitchAscentStep(
+                    _underwaterColliderPivot.rotation,
+                    _rigidbody.rotation * Vector3.right,
+                    maximumRotationDegrees)
+                : CalculateStandardAlignmentStep(worldDirection, maximumRotationDegrees);
 
             if (!IsColliderPoseClear(_underwaterCollider, candidateRotation))
             {
@@ -94,6 +102,11 @@ namespace PhysicsCharacterController
             }
 
             _underwaterColliderPivot.rotation = candidateRotation;
+            if (_isReverseDivePitchAscentActive && _rotationSolver.IsVerticalAscent(AcceptedDirection))
+            {
+                _isReverseDivePitchAscentActive = false;
+            }
+
             return true;
         }
 
@@ -195,7 +208,36 @@ namespace PhysicsCharacterController
 
         private void ResetInactiveRotation()
         {
+            _isReverseDivePitchAscentActive = false;
             _underwaterColliderPivot.localRotation = _defaultLocalRotation;
+        }
+
+        private void UpdateReverseDivePitchAscentState(Vector3 worldDirection)
+        {
+            if (!_rotationSolver.IsVerticalAscent(worldDirection))
+            {
+                _isReverseDivePitchAscentActive = false;
+                return;
+            }
+
+            if (!_isReverseDivePitchAscentActive)
+            {
+                _isReverseDivePitchAscentActive = _rotationSolver.ShouldBeginReverseDivePitchAscent(
+                    worldDirection,
+                    AcceptedDirection);
+            }
+        }
+
+        private Quaternion CalculateStandardAlignmentStep(Vector3 worldDirection, float maximumRotationDegrees)
+        {
+            Quaternion targetRotation = _rotationSolver.CalculateDirectionalTransitionTargetRotation(
+                worldDirection,
+                _underwaterColliderPivot.up,
+                _rigidbody.rotation * Vector3.forward);
+            return Quaternion.RotateTowards(
+                _underwaterColliderPivot.rotation,
+                targetRotation,
+                maximumRotationDegrees);
         }
 
         private bool IsColliderPoseClear(CharacterColliderShape colliderShape)

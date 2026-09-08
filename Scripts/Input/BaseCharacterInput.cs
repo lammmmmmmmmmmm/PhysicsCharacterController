@@ -16,10 +16,15 @@ namespace PhysicsCharacterController
 		public event Action<bool> OnCrouch;
 		public event Action<bool> OnNormalActionsAvailabilityChanged;
 		public event Action<bool> OnTerrestrialActionsAvailabilityChanged;
+		public event Action<bool> OnDiveActionAvailabilityChanged;
+		public event Action<bool> OnWaterSurfaceJumpsAvailabilityChanged;
 
 		public bool AreNormalActionsEnabled { get; private set; } = true;
 		public bool AreTerrestrialActionsEnabled { get; private set; } = true;
+		public bool IsDiveActionEnabled { get; private set; }
+		public bool AreWaterSurfaceJumpsEnabled { get; private set; }
 		public bool IsSprintRequested { get; private set; }
+		public bool IsDiveRequested { get; private set; }
 
 		public abstract Vector2 GetMoveInput();
 		public abstract float GetMoveAngle();
@@ -40,6 +45,7 @@ namespace PhysicsCharacterController
 				InvokeMoveStop();
 				InvokeSprint(false);
 				InvokeCrouch(false);
+				InvokeDive(false);
 			}
 
 			OnNormalActionsAvailabilityChanged?.Invoke(areEnabled);
@@ -61,6 +67,33 @@ namespace PhysicsCharacterController
 			OnTerrestrialActionsAvailabilityChanged?.Invoke(areEnabled);
 		}
 
+		public void SetDiveActionEnabled(bool isEnabled)
+		{
+			if (IsDiveActionEnabled == isEnabled)
+			{
+				return;
+			}
+
+			IsDiveActionEnabled = isEnabled;
+			if (!isEnabled)
+			{
+				InvokeDive(false);
+			}
+
+			OnDiveActionAvailabilityChanged?.Invoke(isEnabled);
+		}
+
+		public void SetWaterSurfaceJumpsEnabled(bool areEnabled)
+		{
+			if (AreWaterSurfaceJumpsEnabled == areEnabled)
+			{
+				return;
+			}
+
+			AreWaterSurfaceJumpsEnabled = areEnabled;
+			OnWaterSurfaceJumpsAvailabilityChanged?.Invoke(areEnabled);
+		}
+
 		#endregion
 
 		#region Protected Methods
@@ -69,7 +102,7 @@ namespace PhysicsCharacterController
 		protected void InvokeMoveStop() => OnMoveStop?.Invoke();
 		protected void InvokeJumpPressed()
 		{
-			if (AreTerrestrialActionsEnabled)
+			if (AreTerrestrialActionsEnabled || AreWaterSurfaceJumpsEnabled)
 			{
 				OnJumpPressed?.Invoke();
 			}
@@ -87,6 +120,16 @@ namespace PhysicsCharacterController
 			{
 				OnCrouch?.Invoke(active);
 			}
+		}
+
+		protected void InvokeDive(bool active)
+		{
+			if (active && (!AreNormalActionsEnabled || !IsDiveActionEnabled))
+			{
+				return;
+			}
+
+			IsDiveRequested = active;
 		}
 
 		#endregion

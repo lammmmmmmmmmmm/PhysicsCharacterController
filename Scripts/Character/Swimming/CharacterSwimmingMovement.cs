@@ -19,16 +19,21 @@ namespace PhysicsCharacterController
         private readonly SwimmingMotionSolver _motionSolver = new();
         private readonly SwimmingStateResolver _stateResolver = new();
         private bool _isEntryVerticalVelocityDampingActive;
+        private bool _isSwimmingEntrySuppressedAfterWaterSurfaceJump;
 
         public float CurrentSpeedMetersPerSecond { get; private set; }
         public Vector3 RequestedDirection { get; private set; }
         public float SurfaceTargetRootHeightMeters => _waterSensor.WaterSurfaceHeightMeters - _settingsSO.SurfaceRootDepthMeters;
         public bool IsTerrestrialExitRecoveryActive => _underwaterCollider.IsTerrestrialExitRecoveryActive;
+        public bool UsesDiveButtonControl => _settingsSO.ControlMode == SwimmingControlMode.DiveButtonWithAutomaticFloat;
+        public bool CanEnterSwimming => _waterSensor.IsSwimmingEntryThresholdReached && !IsSwimmingEntrySuppressedAfterWaterSurfaceJump;
+        public bool IsSwimmingEntrySuppressedAfterWaterSurfaceJump => _isSwimmingEntrySuppressedAfterWaterSurfaceJump;
 
         #region Public Methods
 
         public void BeginSwimmingEntryVelocityDamping()
         {
+            _isSwimmingEntrySuppressedAfterWaterSurfaceJump = false;
             _isEntryVerticalVelocityDampingActive = Mathf.Abs(_rigidbody.linearVelocity.y)
                 > _settingsSO.EntryVerticalVelocityStopThresholdMetersPerSecond;
             if (!_isEntryVerticalVelocityDampingActive)
@@ -45,8 +50,13 @@ namespace PhysicsCharacterController
 
         public bool ShouldDive()
         {
+            if (UsesDiveButtonControl)
+            {
+                return _stateResolver.ShouldDiveWithDiveButton(_input.IsDiveRequested);
+            }
+
             Vector2 movementInput = _input.GetMoveInput();
-            Vector3 underwaterDirection = CalculateUnderwaterDirection(movementInput);
+            Vector3 underwaterDirection = CalculateCameraDirectedUnderwaterDirection(movementInput);
             return _stateResolver.ShouldDive(
                 movementInput.magnitude,
                 underwaterDirection.y,
@@ -56,8 +66,17 @@ namespace PhysicsCharacterController
 
         public bool ShouldReturnToSurface()
         {
+            if (UsesDiveButtonControl)
+            {
+                return _stateResolver.ShouldReturnToSurfaceWithDiveButton(
+                    transform.position.y,
+                    SurfaceTargetRootHeightMeters,
+                    _input.IsDiveRequested,
+                    _settingsSO.SurfaceToleranceMeters);
+            }
+
             Vector2 movementInput = _input.GetMoveInput();
-            Vector3 underwaterDirection = CalculateUnderwaterDirection(movementInput);
+            Vector3 underwaterDirection = CalculateCameraDirectedUnderwaterDirection(movementInput);
             return _stateResolver.ShouldReturnToSurface(
                 transform.position.y,
                 SurfaceTargetRootHeightMeters,
@@ -68,8 +87,36 @@ namespace PhysicsCharacterController
 
         public bool TryEnterUnderwater()
         {
-            Vector3 underwaterDirection = CalculateUnderwaterDirection(_input.GetMoveInput());
+            Vector3 underwaterDirection = CalculateRequestedUnderwaterDirection(
+                _input.GetMoveInput(),
+                ResolveRequestedSpeedMetersPerSecond());
             return _underwaterCollider.TryActivate(underwaterDirection);
+        }
+
+        public void BeginWaterSurfaceJumpReentrySuppression()
+        {
+            _isSwimmingEntrySuppressedAfterWaterSurfaceJump = true;
+        }
+
+        public void RefreshWaterSurfaceJumpReentrySuppression()
+        {
+            if (!_isSwimmingEntrySuppressedAfterWaterSurfaceJump)
+            {
+                return;
+            }
+
+            bool shouldRemainSuppressed = _stateResolver.ShouldSuppressSwimmingEntryAfterWaterSurfaceJump(
+                _waterSensor.HasWaterVolume,
+                _rigidbody.linearVelocity.y);
+            if (!shouldRemainSuppressed)
+            {
+                _isSwimmingEntrySuppressedAfterWaterSurfaceJump = false;
+            }
+        }
+
+        public void BeginSurfaceVisualHandoff(float fixedDeltaTime)
+        {
+            _visualOrientation.ReturnToUpright(fixedDeltaTime);
         }
 
         public bool TryExitUnderwater()
@@ -154,7 +201,11 @@ namespace PhysicsCharacterController
         public void MoveUnderwater(float fixedDeltaTime)
         {
             Vector2 movementInput = _input.GetMoveInput();
-            RequestedDirection = CalculateUnderwaterDirection(movementInput);
+            float horizontalSpeedMetersPerSecond = ResolveRequestedSpeedMetersPerSecond();
+            Vector3 targetVelocity = CalculateUnderwaterTargetVelocity(movementInput, horizontalSpeedMetersPerSecond);
+            RequestedDirection = targetVelocity.sqrMagnitude > Mathf.Epsilon
+                ? targetVelocity.normalized
+                : Vector3.zero;
 
             if (RequestedDirection.sqrMagnitude > _settingsSO.MovementInputThreshold * _settingsSO.MovementInputThreshold)
             {
@@ -164,10 +215,8 @@ namespace PhysicsCharacterController
                     _settingsSO.UnderwaterColliderRotationSpeedDegreesPerSecond);
             }
 
-            float speedMetersPerSecond = ResolveRequestedSpeedMetersPerSecond();
-            Vector3 targetVelocity = RequestedDirection * speedMetersPerSecond;
             ApplyTargetVelocity(targetVelocity, fixedDeltaTime);
-            UpdateAnimationSpeed(RequestedDirection.magnitude, speedMetersPerSecond, fixedDeltaTime);
+            UpdateUnderwaterAnimationSpeed(movementInput, horizontalSpeedMetersPerSecond, fixedDeltaTime);
             float swimmingAnimationBlend01 = CurrentSpeedMetersPerSecond / _settingsSO.NormalSpeedMetersPerSecond;
             _visualOrientation.AlignToColliderRotation(
                 _underwaterCollider.AcceptedRotation,
@@ -199,12 +248,45 @@ namespace PhysicsCharacterController
 
         #region Private Methods
 
-        private Vector3 CalculateUnderwaterDirection(Vector2 movementInput)
+        private Vector3 CalculateCameraDirectedUnderwaterDirection(Vector2 movementInput)
         {
             return _motionSolver.CalculateUnderwaterDirection(
                 movementInput,
                 _characterRotationPolicy.MovementForwardDirection,
                 _characterRotationPolicy.MovementRightDirection);
+        }
+
+        private Vector3 CalculateRequestedUnderwaterDirection(Vector2 movementInput, float horizontalSpeedMetersPerSecond)
+        {
+            if (!UsesDiveButtonControl)
+            {
+                return CalculateCameraDirectedUnderwaterDirection(movementInput);
+            }
+
+            Vector3 targetVelocity = CalculateDiveButtonTargetVelocity(movementInput, horizontalSpeedMetersPerSecond);
+            return targetVelocity.sqrMagnitude > Mathf.Epsilon ? targetVelocity.normalized : Vector3.zero;
+        }
+
+        private Vector3 CalculateUnderwaterTargetVelocity(Vector2 movementInput, float horizontalSpeedMetersPerSecond)
+        {
+            if (!UsesDiveButtonControl)
+            {
+                return CalculateCameraDirectedUnderwaterDirection(movementInput) * horizontalSpeedMetersPerSecond;
+            }
+
+            return CalculateDiveButtonTargetVelocity(movementInput, horizontalSpeedMetersPerSecond);
+        }
+
+        private Vector3 CalculateDiveButtonTargetVelocity(Vector2 movementInput, float horizontalSpeedMetersPerSecond)
+        {
+            return _motionSolver.CalculateDiveButtonTargetVelocity(
+                movementInput,
+                _characterRotationPolicy.MovementForwardDirection,
+                _characterRotationPolicy.MovementRightDirection,
+                horizontalSpeedMetersPerSecond,
+                _input.IsDiveRequested,
+                _settingsSO.DiveSpeedMetersPerSecond,
+                _settingsSO.AutomaticFloatSpeedMetersPerSecond);
         }
 
         private float ResolveRequestedSpeedMetersPerSecond()
@@ -225,6 +307,28 @@ namespace PhysicsCharacterController
                 requestedSpeedMetersPerSecond,
                 _settingsSO.AccelerationMetersPerSecondSquared,
                 _settingsSO.DecelerationMetersPerSecondSquared,
+                fixedDeltaTime);
+        }
+
+        private void UpdateUnderwaterAnimationSpeed(
+            Vector2 movementInput,
+            float horizontalSpeedMetersPerSecond,
+            float fixedDeltaTime)
+        {
+            if (!UsesDiveButtonControl)
+            {
+                UpdateAnimationSpeed(RequestedDirection.magnitude, horizontalSpeedMetersPerSecond, fixedDeltaTime);
+                return;
+            }
+
+            float horizontalPropulsionSpeedMetersPerSecond = Mathf.Clamp01(movementInput.magnitude)
+                * horizontalSpeedMetersPerSecond;
+            float activePropulsionSpeedMetersPerSecond = _input.IsDiveRequested
+                ? Mathf.Max(horizontalPropulsionSpeedMetersPerSecond, _settingsSO.DiveSpeedMetersPerSecond)
+                : horizontalPropulsionSpeedMetersPerSecond;
+            UpdateAnimationSpeed(
+                activePropulsionSpeedMetersPerSecond > 0f ? 1f : 0f,
+                activePropulsionSpeedMetersPerSecond,
                 fixedDeltaTime);
         }
 

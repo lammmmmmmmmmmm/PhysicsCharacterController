@@ -105,6 +105,22 @@ namespace PhysicsCharacterController.Tests
         }
 
         [Test]
+        public void ShouldDiveWithDiveButton_WhileHeldWithoutMovement_ReturnsTrue()
+        {
+            bool shouldDive = _resolver.ShouldDiveWithDiveButton(isDiveRequested: true);
+
+            Assert.That(shouldDive, Is.True);
+        }
+
+        [Test]
+        public void ShouldDiveWithDiveButton_WhenReleased_ReturnsFalse()
+        {
+            bool shouldDive = _resolver.ShouldDiveWithDiveButton(isDiveRequested: false);
+
+            Assert.That(shouldDive, Is.False);
+        }
+
+        [Test]
         public void ShouldReturnToSurface_AtSurfaceWhileAscending_ReturnsTrue()
         {
             bool shouldSurface = _resolver.ShouldReturnToSurface(1.95f, 2f, 0.5f, -0.2f, 0.08f);
@@ -118,6 +134,54 @@ namespace PhysicsCharacterController.Tests
             bool shouldSurface = _resolver.ShouldReturnToSurface(2f, 2f, -0.2f, -0.2f, 0.08f);
 
             Assert.That(shouldSurface, Is.False);
+        }
+
+        [Test]
+        public void ShouldReturnToSurfaceWithDiveButton_AtSurfaceAfterRelease_ReturnsTrue()
+        {
+            bool shouldSurface = _resolver.ShouldReturnToSurfaceWithDiveButton(
+                characterRootHeightMeters: 2f,
+                surfaceTargetRootHeightMeters: 2f,
+                isDiveRequested: false,
+                surfaceToleranceMeters: 0.08f);
+
+            Assert.That(shouldSurface, Is.True);
+        }
+
+        [Test]
+        public void ShouldReturnToSurfaceWithDiveButton_AtSurfaceWhileHeld_ReturnsFalse()
+        {
+            bool shouldSurface = _resolver.ShouldReturnToSurfaceWithDiveButton(
+                characterRootHeightMeters: 2f,
+                surfaceTargetRootHeightMeters: 2f,
+                isDiveRequested: true,
+                surfaceToleranceMeters: 0.08f);
+
+            Assert.That(shouldSurface, Is.False);
+        }
+
+        [Test]
+        public void ShouldSuppressSwimmingEntryAfterWaterSurfaceJump_WhileRisingInWater_ReturnsTrue()
+        {
+            bool shouldSuppress = _resolver.ShouldSuppressSwimmingEntryAfterWaterSurfaceJump(
+                hasWaterVolume: true,
+                verticalSpeedMetersPerSecond: 5f);
+
+            Assert.That(shouldSuppress, Is.True);
+        }
+
+        [TestCase(false, 5f)]
+        [TestCase(true, 0f)]
+        [TestCase(true, -1f)]
+        public void ShouldSuppressSwimmingEntryAfterWaterSurfaceJump_AfterExitOrApex_ReturnsFalse(
+            bool hasWaterVolume,
+            float verticalSpeedMetersPerSecond)
+        {
+            bool shouldSuppress = _resolver.ShouldSuppressSwimmingEntryAfterWaterSurfaceJump(
+                hasWaterVolume,
+                verticalSpeedMetersPerSecond);
+
+            Assert.That(shouldSuppress, Is.False);
         }
     }
 }

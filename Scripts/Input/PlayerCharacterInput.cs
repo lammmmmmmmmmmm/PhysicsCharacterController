@@ -16,10 +16,12 @@ namespace PhysicsCharacterController
 		[SerializeField] private InputActionReference _jumpAction;
 		[SerializeField] private InputActionReference _sprintAction;
 		[SerializeField] private InputActionReference _crouchAction;
+		[SerializeField] private InputActionReference _diveAction;
 
 		[SerializeField] private bool _enableJump = true;
 		[SerializeField] private bool _enableCrouch = true;
 		[SerializeField] private bool _enableSprint = true;
+		[SerializeField] private bool _enableDive = true;
 
 		private float _targetAngle;
 
@@ -36,6 +38,9 @@ namespace PhysicsCharacterController
 
 			_crouchAction.action.started += StartCrouchingWhenRequested;
 			_crouchAction.action.canceled += StopCrouchingWhenRequested;
+
+			_diveAction.action.started += StartDivingWhenRequested;
+			_diveAction.action.canceled += StopDivingWhenRequested;
 		}
 
 		private void OnDisable()
@@ -49,6 +54,10 @@ namespace PhysicsCharacterController
 
 			_crouchAction.action.started -= StartCrouchingWhenRequested;
 			_crouchAction.action.canceled -= StopCrouchingWhenRequested;
+
+			_diveAction.action.started -= StartDivingWhenRequested;
+			_diveAction.action.canceled -= StopDivingWhenRequested;
+			InvokeDive(false);
 		}
 
 		#endregion
@@ -146,6 +155,19 @@ namespace PhysicsCharacterController
 		private void StopCrouchingWhenRequested(InputAction.CallbackContext context)
 		{
 			InvokeCrouch(false);
+		}
+
+		private void StartDivingWhenRequested(InputAction.CallbackContext context)
+		{
+			if (_enableDive)
+			{
+				InvokeDive(true);
+			}
+		}
+
+		private void StopDivingWhenRequested(InputAction.CallbackContext context)
+		{
+			InvokeDive(false);
 		}
 
 		#endregion

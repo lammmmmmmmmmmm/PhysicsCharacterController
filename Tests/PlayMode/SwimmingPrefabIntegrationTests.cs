@@ -2,6 +2,8 @@ using System.Collections;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.TestTools;
 using VContainer;
@@ -24,6 +26,14 @@ namespace PhysicsCharacterController.Tests.PlayMode
         private WaterVolume _waterVolume;
         private float _testPoolSurfaceHeightMeters;
         private float _testPoolFloorTopHeightMeters;
+        private SwimmingMovementSettingsSO _settingsSO;
+        private SwimmingControlMode _originalControlMode;
+        private InputActionMap _gameplayActionMap;
+        private Keyboard _keyboard;
+        private Gamepad _gamepad;
+        private bool _wasGameplayActionMapEnabled;
+        private bool _wasKeyboardAddedForTest;
+        private bool _wasGamepadAddedForTest;
 
         [UnitySetUp]
         public IEnumerator SetUp()
@@ -43,11 +53,30 @@ namespace PhysicsCharacterController.Tests.PlayMode
             Physics.SyncTransforms();
             _testPoolSurfaceHeightMeters = _waterVolume.SurfaceHeightMeters;
             _testPoolFloorTopHeightMeters = _poolInstance.transform.Find("Pool Bottom").GetComponent<Collider>().bounds.max.y;
+
+            FindProductionInputAndSettings();
         }
 
         [TearDown]
         public void TearDown()
         {
+            ReleaseAllKeyboardKeys();
+            _settingsSO.SetControlMode(_originalControlMode);
+            if (!_wasGameplayActionMapEnabled)
+            {
+                _gameplayActionMap.Disable();
+            }
+
+            if (_wasKeyboardAddedForTest)
+            {
+                InputSystem.RemoveDevice(_keyboard);
+            }
+
+            if (_wasGamepadAddedForTest)
+            {
+                InputSystem.RemoveDevice(_gamepad);
+            }
+
             Object.DestroyImmediate(_playerInstance);
             Object.DestroyImmediate(_poolInstance);
             _container?.Dispose();
@@ -88,6 +117,120 @@ namespace PhysicsCharacterController.Tests.PlayMode
                 $"shouldDive={swimmingMovement.ShouldDive()}, shouldReturn={swimmingMovement.ShouldReturnToSurface()}");
             Assert.That(_underwaterCollider.IsActive, Is.False);
             Assert.That(_underwaterCollider.GetComponent<CharacterColliderShape>().IsPhysicsEnabled, Is.True);
+        }
+
+        [TestCase(SwimmingControlMode.CameraDirected)]
+        [TestCase(SwimmingControlMode.DiveButtonWithAutomaticFloat)]
+        public void ProductionSwimmingSettings_ControlModeCanBeSelected(SwimmingControlMode controlMode)
+        {
+            _settingsSO.SetControlMode(controlMode);
+
+            Assert.That(_settingsSO.ControlMode, Is.EqualTo(controlMode));
+            Assert.That(_settingsSO.DiveSpeedMetersPerSecond, Is.EqualTo(3f));
+            Assert.That(_settingsSO.AutomaticFloatSpeedMetersPerSecond, Is.EqualTo(2f));
+        }
+
+        [UnityTest]
+        public IEnumerator DiveAction_GamepadWest_HoldsAndReleases()
+        {
+            _settingsSO.SetControlMode(SwimmingControlMode.DiveButtonWithAutomaticFloat);
+            BaseCharacterInput input = _underwaterCollider.GetComponent<BaseCharacterInput>();
+            PlaceCharacter(new Vector3(0f, _testPoolSurfaceHeightMeters - 2f, 0f));
+
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+
+            Assert.That(input.IsDiveActionEnabled, Is.True);
+            InputSystem.QueueStateEvent(_gamepad, new GamepadState().WithButton(GamepadButton.West));
+            InputSystem.Update();
+            Assert.That(input.IsDiveRequested, Is.True);
+
+            InputSystem.QueueStateEvent(_gamepad, new GamepadState());
+            InputSystem.Update();
+            Assert.That(input.IsDiveRequested, Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator DiveButtonControl_HoldDivesAndReleaseFloatsToSurface()
+        {
+            _settingsSO.SetControlMode(SwimmingControlMode.DiveButtonWithAutomaticFloat);
+            CharacterSwimmingMovement swimmingMovement = _underwaterCollider.GetComponent<CharacterSwimmingMovement>();
+            BaseCharacterInput input = _underwaterCollider.GetComponent<BaseCharacterInput>();
+            PlaceCharacter(new Vector3(0f, _testPoolSurfaceHeightMeters - 2f, 0f));
+
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+
+            PlaceCharacter(new Vector3(0f, swimmingMovement.SurfaceTargetRootHeightMeters, 0f));
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+
+            Assert.That(input.IsDiveActionEnabled, Is.True);
+            PressKeyboardKey(Key.E);
+            for (int fixedStepIndex = 0; fixedStepIndex < 20; fixedStepIndex++)
+            {
+                yield return new WaitForFixedUpdate();
+            }
+
+            Rigidbody characterRigidbody = _underwaterCollider.GetComponent<Rigidbody>();
+            Assert.That(input.IsDiveRequested, Is.True);
+            Assert.That(_underwaterCollider.IsActive, Is.True);
+            Assert.That(characterRigidbody.linearVelocity.y, Is.LessThan(-0.1f));
+
+            ReleaseAllKeyboardKeys();
+            bool wasUpwardFloatObserved = false;
+            for (int fixedStepIndex = 0; fixedStepIndex < 80; fixedStepIndex++)
+            {
+                yield return new WaitForFixedUpdate();
+                wasUpwardFloatObserved |= characterRigidbody.linearVelocity.y > 0.1f;
+                if (!_underwaterCollider.IsActive)
+                {
+                    break;
+                }
+            }
+
+            CharacterAnimator animator = _underwaterCollider.GetComponent<CharacterAnimator>();
+            Assert.That(input.IsDiveRequested, Is.False);
+            Assert.That(wasUpwardFloatObserved, Is.True);
+            Assert.That(_underwaterCollider.IsActive, Is.False);
+            Assert.That(animator.CurrentTag.name, Is.EqualTo("Surface Swimming State"));
+            Assert.That(swimmingMovement.ShouldDive(), Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator SurfaceJump_TransitionsToAirborneWithoutImmediateSwimmingReentry()
+        {
+            CharacterSwimmingMovement swimmingMovement = _underwaterCollider.GetComponent<CharacterSwimmingMovement>();
+            BaseCharacterInput input = _underwaterCollider.GetComponent<BaseCharacterInput>();
+            CharacterJump characterJump = _underwaterCollider.GetComponent<CharacterJump>();
+            Rigidbody characterRigidbody = _underwaterCollider.GetComponent<Rigidbody>();
+            PlaceCharacter(new Vector3(0f, _testPoolSurfaceHeightMeters - 2f, 0f));
+
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+
+            PlaceCharacter(new Vector3(0f, swimmingMovement.SurfaceTargetRootHeightMeters, 0f));
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+
+            Assert.That(input.AreWaterSurfaceJumpsEnabled, Is.True);
+            PressKeyboardKey(Key.Space);
+            yield return new WaitForFixedUpdate();
+
+            CharacterAnimator animator = _underwaterCollider.GetComponent<CharacterAnimator>();
+            Assert.That(characterJump.IsJumpInProgress, Is.True);
+            Assert.That(characterRigidbody.linearVelocity.y, Is.GreaterThan(0f));
+            Assert.That(swimmingMovement.IsSwimmingEntrySuppressedAfterWaterSurfaceJump, Is.True);
+            Assert.That(animator.CurrentTag.name, Is.EqualTo("Airborne State"));
+            Assert.That(input.AreTerrestrialActionsEnabled, Is.True);
+            Assert.That(input.AreWaterSurfaceJumpsEnabled, Is.False);
+
+            characterRigidbody.linearVelocity = Vector3.zero;
+            swimmingMovement.RefreshWaterSurfaceJumpReentrySuppression();
+            Assert.That(swimmingMovement.IsSwimmingEntrySuppressedAfterWaterSurfaceJump, Is.False);
         }
 
         [UnityTest]
@@ -268,6 +411,85 @@ namespace PhysicsCharacterController.Tests.PlayMode
 
             Assert.That(Vector3.Dot(meshTransform.up, Vector3.up), Is.GreaterThan(0.999f));
             Assert.That(Vector3.Dot(meshTransform.forward, facingDirectionBeforeEntry), Is.GreaterThan(0.999f));
+        }
+
+        [Test]
+        public void IdleSurfaceDive_TransitionsHeadDownByTiltingForward()
+        {
+            _underwaterCollider.transform.rotation = Quaternion.Euler(0f, 73f, 0f);
+            Physics.SyncTransforms();
+            Rigidbody characterRigidbody = _underwaterCollider.GetComponent<Rigidbody>();
+            Transform meshTransform = _underwaterCollider.transform.Find("Mesh");
+            Vector3 characterForwardDirection = characterRigidbody.rotation * Vector3.forward;
+            Vector3 characterRightDirection = characterRigidbody.rotation * Vector3.right;
+            Assert.That(_underwaterCollider.TryActivate(Vector3.down), Is.True);
+            CharacterSwimmingVisualOrientation visualOrientation = _underwaterCollider.GetComponent<CharacterSwimmingVisualOrientation>();
+
+            visualOrientation.AlignToColliderRotation(
+                _underwaterCollider.AcceptedRotation,
+                characterRigidbody.rotation,
+                swimmingAnimationBlend01: 0f,
+                fixedDeltaTime: 0.05f);
+
+            Assert.That(Vector3.Dot(meshTransform.up, characterForwardDirection), Is.GreaterThan(0.5f));
+            Assert.That(Mathf.Abs(Vector3.Dot(meshTransform.up, characterRightDirection)), Is.LessThan(0.01f));
+
+            visualOrientation.AlignToColliderRotation(
+                _underwaterCollider.AcceptedRotation,
+                characterRigidbody.rotation,
+                swimmingAnimationBlend01: 0f,
+                fixedDeltaTime: 1f);
+            Assert.That(Vector3.Dot(meshTransform.up, Vector3.down), Is.GreaterThan(0.999f));
+        }
+
+        [Test]
+        public void AutomaticFloatAfterVerticalDive_RetracesDivePitchWithoutRolling()
+        {
+            _underwaterCollider.transform.rotation = Quaternion.Euler(0f, 73f, 0f);
+            Physics.SyncTransforms();
+            Rigidbody characterRigidbody = _underwaterCollider.GetComponent<Rigidbody>();
+            Transform meshTransform = _underwaterCollider.transform.Find("Mesh");
+            Vector3 characterForwardDirection = characterRigidbody.rotation * Vector3.forward;
+            Vector3 characterRightDirection = characterRigidbody.rotation * Vector3.right;
+            Assert.That(_underwaterCollider.TryActivate(Vector3.down), Is.True);
+            CharacterSwimmingVisualOrientation visualOrientation = _underwaterCollider.GetComponent<CharacterSwimmingVisualOrientation>();
+            visualOrientation.AlignToColliderRotation(
+                _underwaterCollider.AcceptedRotation,
+                characterRigidbody.rotation,
+                swimmingAnimationBlend01: 1f,
+                fixedDeltaTime: 1f);
+            Assert.That(Vector3.Dot(meshTransform.forward, Vector3.down), Is.GreaterThan(0.999f));
+            Assert.That(_underwaterCollider.TryAlign(Vector3.up, 0.02f, 360f), Is.True);
+
+            visualOrientation.AlignToColliderRotation(
+                _underwaterCollider.AcceptedRotation,
+                characterRigidbody.rotation,
+                swimmingAnimationBlend01: 1f,
+                fixedDeltaTime: 0.02f);
+
+            Assert.That(Vector3.Dot(_underwaterCollider.AcceptedDirection, characterForwardDirection), Is.GreaterThan(0.1f));
+            Assert.That(Vector3.Dot(meshTransform.forward, characterForwardDirection), Is.GreaterThan(0f));
+            Assert.That(Mathf.Abs(Vector3.Dot(meshTransform.forward, characterRightDirection)), Is.LessThan(0.01f));
+            Assert.That(Vector3.Dot(meshTransform.right, characterRightDirection), Is.GreaterThan(0.999f));
+
+            for (int alignmentStepIndex = 1; alignmentStepIndex < 25; alignmentStepIndex++)
+            {
+                Assert.That(_underwaterCollider.TryAlign(Vector3.up, 0.02f, 360f), Is.True);
+                visualOrientation.AlignToColliderRotation(
+                    _underwaterCollider.AcceptedRotation,
+                    characterRigidbody.rotation,
+                    swimmingAnimationBlend01: 1f,
+                    fixedDeltaTime: 0.02f);
+            }
+
+            visualOrientation.AlignToColliderRotation(
+                _underwaterCollider.AcceptedRotation,
+                characterRigidbody.rotation,
+                swimmingAnimationBlend01: 1f,
+                fixedDeltaTime: 1f);
+            Assert.That(Vector3.Dot(_underwaterCollider.AcceptedDirection, Vector3.up), Is.GreaterThan(0.999f));
+            Assert.That(Vector3.Dot(meshTransform.forward, Vector3.up), Is.GreaterThan(0.999f));
+            Assert.That(Vector3.Dot(characterRigidbody.rotation * Vector3.forward, characterForwardDirection), Is.GreaterThan(0.999f));
         }
 
         [Test]
@@ -702,6 +924,68 @@ namespace PhysicsCharacterController.Tests.PlayMode
             _underwaterCollider.transform.position = worldPosition;
             _underwaterCollider.GetComponent<Rigidbody>().linearVelocity = Vector3.zero;
             Physics.SyncTransforms();
+        }
+
+        private void FindProductionInputAndSettings()
+        {
+            SwimmingMovementSettingsSO[] settingsAssets = Resources.FindObjectsOfTypeAll<SwimmingMovementSettingsSO>();
+            foreach (SwimmingMovementSettingsSO settingsAsset in settingsAssets)
+            {
+                if (settingsAsset.name == "Swimming Movement Settings")
+                {
+                    _settingsSO = settingsAsset;
+                    break;
+                }
+            }
+
+            Assert.That(_settingsSO, Is.Not.Null);
+            _originalControlMode = _settingsSO.ControlMode;
+            _settingsSO.SetControlMode(SwimmingControlMode.CameraDirected);
+
+            InputActionAsset[] inputActionAssets = Resources.FindObjectsOfTypeAll<InputActionAsset>();
+            foreach (InputActionAsset inputActionAsset in inputActionAssets)
+            {
+                InputActionMap gameplayActionMap = inputActionAsset.FindActionMap("Gameplay", throwIfNotFound: false);
+                if (gameplayActionMap?.FindAction("Dive", throwIfNotFound: false) == null)
+                {
+                    continue;
+                }
+
+                _gameplayActionMap = gameplayActionMap;
+                break;
+            }
+
+            Assert.That(_gameplayActionMap, Is.Not.Null);
+            _wasGameplayActionMapEnabled = _gameplayActionMap.enabled;
+            _gameplayActionMap.Enable();
+
+            _keyboard = Keyboard.current;
+            if (_keyboard == null)
+            {
+                _keyboard = InputSystem.AddDevice<Keyboard>();
+                _wasKeyboardAddedForTest = true;
+            }
+
+            _gamepad = InputSystem.AddDevice<Gamepad>();
+            _wasGamepadAddedForTest = true;
+        }
+
+        private void PressKeyboardKey(Key key)
+        {
+            var keyboardState = new KeyboardState(key);
+            InputSystem.QueueStateEvent(_keyboard, keyboardState);
+            InputSystem.Update();
+        }
+
+        private void ReleaseAllKeyboardKeys()
+        {
+            if (_keyboard == null || !_keyboard.added)
+            {
+                return;
+            }
+
+            InputSystem.QueueStateEvent(_keyboard, new KeyboardState());
+            InputSystem.Update();
         }
 
         private static int CountEnabledColliderShapes(CharacterColliderShape[] colliderShapes)

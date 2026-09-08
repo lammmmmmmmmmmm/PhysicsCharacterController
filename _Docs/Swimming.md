@@ -10,7 +10,8 @@ The intended feel is broadly similar to GTA V swimming. GTA V is a behavioral re
 - Swimming supports full 3D movement.
 - Swimming movement is camera-relative.
 - Moving forward sends the character toward the direction the camera is facing.
-- Underwater, the camera's vertical angle contributes to the movement direction.
+- Camera-directed control uses the camera's vertical angle for underwater movement.
+- Dive-button control keeps horizontal movement camera-yaw-relative and controls depth with a dedicated action.
 - The character rotates and pitches toward the actual swimming direction.
 - Swimming supports normal and fast movement speeds.
 - Holding Shift activates fast swimming.
@@ -20,15 +21,17 @@ The intended feel is broadly similar to GTA V swimming. GTA V is a behavioral re
 - At the surface, the character remains constrained to a natural position around the waterline.
 - Normal surface movement occurs along the water surface.
 - The character should not accidentally move above or beneath the surface during ordinary surface swimming.
-- To submerge, the player deliberately aims/moves downward.
-- No dedicated dive input is required.
+- Camera-directed control submerges when the player deliberately aims/moves downward.
+- Dive-button control submerges while Dive is held and floats upward after release.
+- The developer selects the active control mode in the swimming movement settings.
+- Jump is available from surface swimming.
 - Reaching the waterline from underwater automatically transitions the character into surface swimming.
 
 ### Underwater Behavior
 - Underwater movement is freely controllable in three dimensions.
 - The character can ascend, descend, and move horizontally through camera-relative movement.
-- When movement input stops, the character approximately maintains their current depth.
-- The character is not automatically pulled toward the surface.
+- Camera-directed control approximately maintains depth when movement input stops.
+- Dive-button control automatically floats toward the surface whenever Dive is released.
 
 ### Buoyancy
 Buoyancy is an assisted gameplay behavior rather than a realistic physical simulation.
@@ -83,7 +86,7 @@ Missing underwater animations must not prevent the associated swimming behavior 
   - Swimming uses camera-relative movement.
   - Underwater movement supports three dimensions.
   - Surface movement remains constrained to the waterline until the player deliberately moves downward.
-  - Diving requires no dedicated action.
+  - Camera-directed diving requires no dedicated action; Dive-button mode provides an alternative dedicated action.
   - Reaching the surface automatically transitions to surface swimming.
   - Leaving sufficiently deep water automatically returns the character to an appropriate ground locomotion mode.
   - Swimming supports normal and fast speeds.
@@ -95,7 +98,7 @@ Missing underwater animations must not prevent the associated swimming behavior 
   - Buoyancy should not override deliberate player movement.
   - Surface swimming should not allow the character to rise unnaturally above the water.
   - Underwater characters should not automatically float back to the surface.
-  - The feature does not require a dedicated dive button.
+  - A dedicated Dive button is required only when Dive-button control is selected.
   - The feature does not require underwater-specific animations to exist before the corresponding gameplay behavior can function.
 
 ## Execution
@@ -131,11 +134,18 @@ Missing underwater animations must not prevent the associated swimming behavior 
 
 ### Interaction 5: Diving From the Surface
 1. The character is at the surface.
-2. The player deliberately aims/moves downward.
+2. The player deliberately aims/moves downward in camera-directed mode, or holds Dive in Dive-button mode.
 3. The surface constraint is released.
 4. The character pitches toward the requested movement direction.
 5. The character moves beneath the surface.
 6. Underwater swimming behavior becomes active.
+
+### Interaction 5A: Jumping From the Surface
+1. The character is in surface swimming.
+2. The player presses Jump.
+3. The character launches upward using the normal jump force and enters airborne locomotion.
+4. Swimming re-entry is suppressed while the jump is still rising inside the water threshold.
+5. If the character falls back into the water, swimming activates normally.
 
 ### Interaction 6: Underwater Swimming
 1. The player provides movement input while submerged.
@@ -146,7 +156,7 @@ Missing underwater animations must not prevent the associated swimming behavior 
 6. Otherwise, the surface swimming animation is used.
 
 ### Interaction 7: Returning to the Surface
-1. The character swims upward.
+1. The character swims upward, or automatically floats upward after releasing Dive in Dive-button mode.
 2. The character reaches the waterline.
 3. Upward movement does not carry the character unnaturally above the surface.
 4. The character settles into the appropriate surface position.

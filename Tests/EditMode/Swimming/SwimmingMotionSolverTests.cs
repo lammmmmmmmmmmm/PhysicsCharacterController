@@ -50,6 +50,83 @@ namespace PhysicsCharacterController.Tests
         }
 
         [Test]
+        public void CalculateDiveButtonTargetVelocity_WithPitchedCamera_RemovesCameraVerticalDirection()
+        {
+            Vector3 velocityMetersPerSecond = _solver.CalculateDiveButtonTargetVelocity(
+                Vector2.up,
+                new Vector3(0f, -0.8f, 0.6f),
+                Vector3.right,
+                horizontalSpeedMetersPerSecond: 3f,
+                isDiveRequested: false,
+                diveSpeedMetersPerSecond: 3f,
+                automaticFloatSpeedMetersPerSecond: 2f);
+
+            Assert.That(
+                velocityMetersPerSecond,
+                Is.EqualTo(new Vector3(0f, 2f, 3f)).Using(Vector3ComparerWithEqualsOperator.Instance));
+        }
+
+        [Test]
+        public void CalculateDiveButtonTargetVelocity_WhileHeld_DivesWithoutMovementInput()
+        {
+            Vector3 velocityMetersPerSecond = _solver.CalculateDiveButtonTargetVelocity(
+                Vector2.zero,
+                Vector3.forward,
+                Vector3.right,
+                horizontalSpeedMetersPerSecond: 6f,
+                isDiveRequested: true,
+                diveSpeedMetersPerSecond: 3f,
+                automaticFloatSpeedMetersPerSecond: 2f);
+
+            Assert.That(
+                velocityMetersPerSecond,
+                Is.EqualTo(Vector3.down * 3f).Using(Vector3ComparerWithEqualsOperator.Instance));
+        }
+
+        [Test]
+        public void CalculateDiveButtonTargetVelocity_WhenReleased_FloatsWithoutMovementInput()
+        {
+            Vector3 velocityMetersPerSecond = _solver.CalculateDiveButtonTargetVelocity(
+                Vector2.zero,
+                Vector3.forward,
+                Vector3.right,
+                horizontalSpeedMetersPerSecond: 6f,
+                isDiveRequested: false,
+                diveSpeedMetersPerSecond: 3f,
+                automaticFloatSpeedMetersPerSecond: 2f);
+
+            Assert.That(
+                velocityMetersPerSecond,
+                Is.EqualTo(Vector3.up * 2f).Using(Vector3ComparerWithEqualsOperator.Instance));
+        }
+
+        [Test]
+        public void CalculateDiveButtonTargetVelocity_SprintOnlyChangesHorizontalSpeed()
+        {
+            Vector3 normalVelocityMetersPerSecond = _solver.CalculateDiveButtonTargetVelocity(
+                Vector2.up,
+                Vector3.forward,
+                Vector3.right,
+                horizontalSpeedMetersPerSecond: 3f,
+                isDiveRequested: true,
+                diveSpeedMetersPerSecond: 3f,
+                automaticFloatSpeedMetersPerSecond: 2f);
+            Vector3 sprintVelocityMetersPerSecond = _solver.CalculateDiveButtonTargetVelocity(
+                Vector2.up,
+                Vector3.forward,
+                Vector3.right,
+                horizontalSpeedMetersPerSecond: 6f,
+                isDiveRequested: true,
+                diveSpeedMetersPerSecond: 3f,
+                automaticFloatSpeedMetersPerSecond: 2f);
+
+            Assert.That(normalVelocityMetersPerSecond.z, Is.EqualTo(3f));
+            Assert.That(sprintVelocityMetersPerSecond.z, Is.EqualTo(6f));
+            Assert.That(normalVelocityMetersPerSecond.y, Is.EqualTo(-3f));
+            Assert.That(sprintVelocityMetersPerSecond.y, Is.EqualTo(-3f));
+        }
+
+        [Test]
         public void DampVerticalVelocityTowards_WhenFalling_SlowsGraduallyAndPreservesHorizontalVelocity()
         {
             Vector3 velocityMetersPerSecond = _solver.DampVerticalVelocityTowards(

@@ -3,6 +3,7 @@
     "rootNamespace": "PhysicsCharacterController.Tests.PlayMode",
     "references": [
         "PhysicsCharacterController.Runtime",
+        "Unity.InputSystem",
         "Unity.Addressables",
         "Unity.ResourceManager",
         "VContainer",

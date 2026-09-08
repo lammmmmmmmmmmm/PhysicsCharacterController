@@ -30,6 +30,7 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
 
         protected override void OnEnter()
         {
+            _context.Input.SetWaterSurfaceJumpsEnabled(false);
             _context.CharacterRotationPolicy.SetAutomaticRotationEnabled(false);
             _context.Animator.SetBase(
                 _context.UnderwaterSwimmingAnimationData.LocomotionMixer,

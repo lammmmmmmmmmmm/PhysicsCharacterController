@@ -12,6 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e7ae08d90b3a9d84fa9088b7eb85d5ac, type: 3}
   m_Name: Swimming Movement Settings
   m_EditorClassIdentifier: PhysicsCharacterController.Runtime::PhysicsCharacterController.SwimmingMovementSettingsSO
+  _controlMode: 1
+  _diveSpeedMetersPerSecond: 3
+  _automaticFloatSpeedMetersPerSecond: 2
   _enterSwimmingImmersion01: 0.65
   _exitSwimmingImmersion01: 0.45
   _diveDirectionYThreshold: -0.5
