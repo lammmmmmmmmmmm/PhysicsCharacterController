@@ -18,7 +18,7 @@ namespace PhysicsCharacterController
     [DisallowMultipleComponent]
     [RequireComponent(typeof(RectTransform))]
     [AddComponentMenu("UI/Touch Look Input")]
-    public sealed class TouchLookInput : MonoBehaviour, ICameraLookInputSource
+    public sealed class TouchLookInput : MonoBehaviour
     {
         private const int NO_TOUCH_ID = -1;
 

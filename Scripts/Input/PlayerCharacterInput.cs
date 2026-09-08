@@ -16,7 +16,6 @@ namespace PhysicsCharacterController
 		[SerializeField] private InputActionReference _jumpAction;
 		[SerializeField] private InputActionReference _sprintAction;
 		[SerializeField] private InputActionReference _crouchAction;
-		[SerializeField] private TouchJoystickInput _touchJoystickInput;
 
 		[SerializeField] private bool _enableJump = true;
 		[SerializeField] private bool _enableCrouch = true;
@@ -63,9 +62,7 @@ namespace PhysicsCharacterController
 				return Vector2.zero;
 			}
 
-			return UnityEngine.Device.Application.isMobilePlatform
-				? _touchJoystickInput.InputValue
-				: _moveAction.action.ReadValue<Vector2>();
+			return _moveAction.action.ReadValue<Vector2>();
 		}
 
 		public override float GetMoveAngle()
@@ -92,42 +89,14 @@ namespace PhysicsCharacterController
 
 		private void SubscribeToMovementInput()
 		{
-			if (UnityEngine.Device.Application.isMobilePlatform)
-			{
-				_touchJoystickInput.OnInputChanged += PublishTouchMovementChange;
-				return;
-			}
-
 			_moveAction.action.performed += PublishMovementFromAction;
 			_moveAction.action.canceled += StopMovementFromAction;
 		}
 
 		private void UnsubscribeFromMovementInput()
 		{
-			if (UnityEngine.Device.Application.isMobilePlatform)
-			{
-				_touchJoystickInput.OnInputChanged -= PublishTouchMovementChange;
-				return;
-			}
-
 			_moveAction.action.performed -= PublishMovementFromAction;
 			_moveAction.action.canceled -= StopMovementFromAction;
-		}
-
-		private void PublishTouchMovementChange(Vector2 movementInput)
-		{
-			if (!AreNormalActionsEnabled)
-			{
-				return;
-			}
-
-			if (movementInput == Vector2.zero)
-			{
-				InvokeMoveStop();
-				return;
-			}
-
-			InvokeMoveStart(movementInput);
 		}
 
 		private void PublishMovementFromAction(InputAction.CallbackContext context)

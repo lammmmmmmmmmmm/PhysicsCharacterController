@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -8,8 +9,12 @@ using UnityEngine.InputSystem.OnScreen;
 using UnityEngine.UI;
 
 [AddComponentMenu("UI/On-Screen Look")]
+[DefaultExecutionOrder(-100)]
 public class OnScreenLook : OnScreenControl
 {
+    private const int MOUSE_POINTER_ID = -999;
+    private const int NO_TOUCH_ID = -1;
+
     [Header("Sensitivity")]
     [SerializeField, Range(0.01f, 5f)] private float sensitivity = 1f;
     [SerializeField] private bool invertX = false;
@@ -28,12 +33,17 @@ public class OnScreenLook : OnScreenControl
     }
 
     private bool _isDragging;
-    private int _lookTouchId = -1;
+    private int _lookTouchId = NO_TOUCH_ID;
     private Vector2 _previousPointerPosition;
 
     private static readonly List<RaycastResult> RaycastResults = new();
 
     public bool IsDragging => _isDragging;
+    public bool IsTouchInputActive { get; private set; }
+    public Vector2 ScreenPositionPixels { get; private set; }
+
+    public event Action OnPressed;
+    public event Action OnReleased;
 
     private void Awake()
     {
@@ -62,6 +72,12 @@ public class OnScreenLook : OnScreenControl
         HandleMouse();
     }
 
+    protected override void OnDisable()
+    {
+        StopDragging();
+        base.OnDisable();
+    }
+
     private void HandleTouches()
     {
         bool activeLookTouchStillExists = false;
@@ -86,7 +102,7 @@ public class OnScreenLook : OnScreenControl
                 if (blockWhenPointerStartsOverUI && IsPointerOverAnyUI(position))
                     continue;
 
-                BeginTouch(touchId, position);
+                BeginPointer(touchId, position, true);
                 activeLookTouchStillExists = true;
             }
         }
@@ -115,7 +131,7 @@ public class OnScreenLook : OnScreenControl
                 return;
             }
 
-            BeginTouch(-999, position);
+            BeginPointer(MOUSE_POINTER_ID, position, false);
             return;
         }
 
@@ -131,18 +147,22 @@ public class OnScreenLook : OnScreenControl
         }
     }
 
-    private void BeginTouch(int touchId, Vector2 position)
+    private void BeginPointer(int pointerId, Vector2 position, bool isTouchInput)
     {
-        _lookTouchId = touchId;
+        _lookTouchId = pointerId;
         _isDragging = true;
+        IsTouchInputActive = isTouchInput;
         _previousPointerPosition = position;
+        ScreenPositionPixels = position;
         SendValueToControl(Vector2.zero);
+        OnPressed?.Invoke();
     }
 
     private void ContinuePointer(Vector2 position)
     {
         Vector2 delta = position - _previousPointerPosition;
         _previousPointerPosition = position;
+        ScreenPositionPixels = position;
 
         delta.x *= sensitivity * (invertX ? -1f : 1f);
         delta.y *= sensitivity * (invertY ? -1f : 1f);
@@ -156,8 +176,11 @@ public class OnScreenLook : OnScreenControl
             return;
 
         _isDragging = false;
-        _lookTouchId = -1;
+        _lookTouchId = NO_TOUCH_ID;
+        ScreenPositionPixels = Vector2.zero;
         SendValueToControl(Vector2.zero);
+        OnReleased?.Invoke();
+        IsTouchInputActive = false;
     }
 
     private bool IsPointerOverAnyUI(Vector2 screenPosition)

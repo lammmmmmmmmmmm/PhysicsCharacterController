@@ -13,7 +13,6 @@ namespace PhysicsCharacterController
     {
         [SerializeField] private InputActionReference _cameraActionReference;
         [SerializeField] private LockCursor _lockCursor;
-        [SerializeField] private TouchLookInput _touchLookInput;
 
         [Header("Camera controls")]
         [SerializeField] private Vector2 _mouseSensitivity = new(8f, -50f);
@@ -61,16 +60,9 @@ namespace PhysicsCharacterController
 
         private void UpdateTargetAxisDegrees()
         {
-            Vector2 input = ReadCameraInput();
+            Vector2 input = _cameraActionReference.action.ReadValue<Vector2>();
             _targetAxisDegrees += input * _mouseSensitivity * new Vector2(0.01f, 0.001f);
             _targetAxisDegrees.y = _panTilt.TiltAxis.ClampValue(_targetAxisDegrees.y);
-        }
-
-        private Vector2 ReadCameraInput()
-        {
-            return UnityEngine.Device.Application.isMobilePlatform
-                ? _touchLookInput.LookDeltaPixels
-                : _cameraActionReference.action.ReadValue<Vector2>();
         }
 
         private void SmoothAndApplyAxisDegrees()

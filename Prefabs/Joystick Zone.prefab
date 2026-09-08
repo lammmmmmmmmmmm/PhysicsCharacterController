@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 5389863139910467200}
   - component: {fileID: 8768290662628542901}
   - component: {fileID: 1631972145934099439}
-  - component: {fileID: 972761423078378084}
+  - component: {fileID: 9188549072643910013}
   m_Layer: 5
   m_Name: Joystick Zone
   m_TagString: Untagged
@@ -77,7 +77,7 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
---- !u!114 &972761423078378084
+--- !u!114 &9188549072643910013
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -86,17 +86,18 @@ MonoBehaviour:
   m_GameObject: {fileID: 5310963012406550975}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 97f6a31e6eae992469724dfe233ba31c, type: 3}
+  m_Script: {fileID: 11500000, guid: 10c776e2ec6f1f74586235a7575853b6, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: PhysicsCharacterController.Runtime::PhysicsCharacterController.TouchJoystickInput
-  _touchZone: {fileID: 5389863139910467200}
-  _joystickBackground: {fileID: 6941546153396282911}
-  _joystickHandle: {fileID: 987544841112589026}
-  _joystickMode: 0
-  _handleRangePixels: 100
-  _deadzone01: 0.1
-  _returnSpeedPerSecond: 15
-  _hidesWhenIdle: 1
+  m_EditorClassIdentifier: PhysicsCharacterController.Runtime::OnScreenJoystick
+  touchZone: {fileID: 5389863139910467200}
+  joystickBackground: {fileID: 6941546153396282911}
+  joystickHandle: {fileID: 987544841112589026}
+  mode: 0
+  handleRange: 80
+  deadzone: 0.1
+  returnSpeed: 15
+  hideWhenIdle: 1
+  _controlPath: <Gamepad>/leftStick
 --- !u!1 &7156333936262665426
 GameObject:
   m_ObjectHideFlags: 0
