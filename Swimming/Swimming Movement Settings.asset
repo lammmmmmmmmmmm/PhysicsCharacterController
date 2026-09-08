@@ -24,6 +24,8 @@ MonoBehaviour:
   _decelerationMetersPerSecondSquared: 8
   _movementInputThreshold: 0.01
   _collisionSweepSkinMeters: 0.05
+  _entryVerticalVelocityDampingSharpnessPerSecond: 10
+  _entryVerticalVelocityStopThresholdMetersPerSecond: 0.05
   _exitRecoveryMaximumDistanceMeters: 2
   _exitRecoveryProbeIntervalMeters: 0.1
   _exitRecoverySpeedMetersPerSecond: 4

@@ -33,6 +33,7 @@ namespace PhysicsCharacterController
         private readonly SwimmingExitRecoverySolver _exitRecoverySolver = new();
 
         private Vector3 _recoveryTargetRootPosition;
+        private Quaternion _defaultLocalRotation;
 
         public bool IsActive => _underwaterCollider.IsPhysicsEnabled;
         public Vector3 AcceptedDirection => _underwaterColliderPivot.forward;
@@ -44,6 +45,7 @@ namespace PhysicsCharacterController
 
         private void Awake()
         {
+            _defaultLocalRotation = _underwaterColliderPivot.localRotation;
             _underwaterCollider.PhysicsCollider.sharedMaterial = _swimmingPhysicsMaterial;
             _underwaterCollider.SetPhysicsEnabled(false);
             _uprightCollider.SetPhysicsEnabled(true);
@@ -56,10 +58,11 @@ namespace PhysicsCharacterController
         public bool TryActivate(Vector3 worldDirection)
         {
             CancelTerrestrialExitRecovery();
-            Vector3 activationDirection = worldDirection.sqrMagnitude > Mathf.Epsilon
-                ? worldDirection.normalized
-                : transform.forward;
-            Quaternion candidateRotation = _rotationSolver.CalculateTargetRotation(activationDirection, transform.forward);
+            Quaternion candidateRotation = _underwaterColliderPivot.rotation;
+            if (worldDirection.sqrMagnitude > Mathf.Epsilon)
+            {
+                candidateRotation = _rotationSolver.CalculateTargetRotation(worldDirection.normalized, _underwaterColliderPivot.up);
+            }
 
             if (!IsColliderPoseClear(_underwaterCollider, candidateRotation))
             {
@@ -98,6 +101,7 @@ namespace PhysicsCharacterController
         {
             if (!IsActive)
             {
+                ResetInactiveRotation();
                 CancelTerrestrialExitRecovery();
                 return true;
             }
@@ -109,6 +113,7 @@ namespace PhysicsCharacterController
 
             _underwaterCollider.SetPhysicsEnabled(false);
             _uprightCollider.SetPhysicsEnabled(true);
+            ResetInactiveRotation();
             CancelTerrestrialExitRecovery();
             return true;
         }
@@ -187,6 +192,11 @@ namespace PhysicsCharacterController
         #endregion
 
         #region Private Methods
+
+        private void ResetInactiveRotation()
+        {
+            _underwaterColliderPivot.localRotation = _defaultLocalRotation;
+        }
 
         private bool IsColliderPoseClear(CharacterColliderShape colliderShape)
         {

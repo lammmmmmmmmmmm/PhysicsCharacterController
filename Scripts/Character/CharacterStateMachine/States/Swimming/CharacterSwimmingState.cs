@@ -60,7 +60,7 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
         protected override void OnEnter()
         {
             _isShallowWaterExitRecoveryActive = false;
-            _context.SwimmingMovement.StopSinkingOnSwimmingEntry();
+            _context.SwimmingMovement.BeginSwimmingEntryVelocityDamping();
             _context.Input.SetTerrestrialActionsEnabled(false);
             _context.CharacterCrouch.ApplyStandState();
         }

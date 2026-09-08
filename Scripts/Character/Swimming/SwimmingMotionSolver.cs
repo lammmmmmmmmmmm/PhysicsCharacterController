@@ -18,10 +18,18 @@ namespace PhysicsCharacterController
             return Vector3.ClampMagnitude(forward * movementInput.y + right * movementInput.x, 1f);
         }
 
-        public Vector3 RemoveDownwardVelocity(Vector3 velocityMetersPerSecond)
+        public Vector3 DampVerticalVelocityTowards(
+            Vector3 currentVelocityMetersPerSecond,
+            float targetVerticalVelocityMetersPerSecond,
+            float dampingSharpnessPerSecond,
+            float fixedDeltaTime)
         {
-            velocityMetersPerSecond.y = Mathf.Max(0f, velocityMetersPerSecond.y);
-            return velocityMetersPerSecond;
+            float damping01 = 1f - Mathf.Exp(-Mathf.Max(0f, dampingSharpnessPerSecond) * Mathf.Max(0f, fixedDeltaTime));
+            currentVelocityMetersPerSecond.y = Mathf.Lerp(
+                currentVelocityMetersPerSecond.y,
+                targetVerticalVelocityMetersPerSecond,
+                damping01);
+            return currentVelocityMetersPerSecond;
         }
 
         public Vector3 CalculateSurfaceTargetVelocity(
@@ -71,9 +79,7 @@ namespace PhysicsCharacterController
             float fixedDeltaTime)
         {
             float safeFixedDeltaTime = Mathf.Max(fixedDeltaTime, Mathf.Epsilon);
-            float remainingUpwardDistanceMeters = Mathf.Max(
-                surfaceTargetRootHeightMeters - characterRootHeightMeters,
-                0f);
+            float remainingUpwardDistanceMeters = Mathf.Max(surfaceTargetRootHeightMeters - characterRootHeightMeters, 0f);
             float maximumUpwardSpeedMetersPerSecond = remainingUpwardDistanceMeters / safeFixedDeltaTime;
             velocity.y = Mathf.Min(velocity.y, maximumUpwardSpeedMetersPerSecond);
             return velocity;

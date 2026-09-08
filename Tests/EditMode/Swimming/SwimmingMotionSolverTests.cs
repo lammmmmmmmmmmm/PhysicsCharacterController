@@ -50,23 +50,41 @@ namespace PhysicsCharacterController.Tests
         }
 
         [Test]
-        public void RemoveDownwardVelocity_WhenFalling_PreservesHorizontalVelocityAndStopsDescent()
+        public void DampVerticalVelocityTowards_WhenFalling_SlowsGraduallyAndPreservesHorizontalVelocity()
         {
-            Vector3 velocityMetersPerSecond = _solver.RemoveDownwardVelocity(new Vector3(4f, -20f, -3f));
+            Vector3 velocityMetersPerSecond = _solver.DampVerticalVelocityTowards(
+                new Vector3(4f, -20f, -3f),
+                targetVerticalVelocityMetersPerSecond: 0f,
+                dampingSharpnessPerSecond: 40f,
+                fixedDeltaTime: 0.02f);
 
-            Assert.That(
-                velocityMetersPerSecond,
-                Is.EqualTo(new Vector3(4f, 0f, -3f)).Using(Vector3ComparerWithEqualsOperator.Instance));
+            Assert.That(velocityMetersPerSecond.x, Is.EqualTo(4f));
+            Assert.That(velocityMetersPerSecond.y, Is.GreaterThan(-20f).And.LessThan(0f));
+            Assert.That(velocityMetersPerSecond.z, Is.EqualTo(-3f));
         }
 
         [Test]
-        public void RemoveDownwardVelocity_WhenRising_PreservesJumpVelocity()
+        public void DampVerticalVelocityTowards_WhenRising_SlowsGraduallyWithoutHardCancellation()
         {
-            Vector3 velocityMetersPerSecond = _solver.RemoveDownwardVelocity(new Vector3(4f, 5f, -3f));
+            Vector3 velocityMetersPerSecond = _solver.DampVerticalVelocityTowards(
+                new Vector3(4f, 5f, -3f),
+                targetVerticalVelocityMetersPerSecond: 0f,
+                dampingSharpnessPerSecond: 40f,
+                fixedDeltaTime: 0.02f);
 
-            Assert.That(
-                velocityMetersPerSecond,
-                Is.EqualTo(new Vector3(4f, 5f, -3f)).Using(Vector3ComparerWithEqualsOperator.Instance));
+            Assert.That(velocityMetersPerSecond.y, Is.GreaterThan(0f).And.LessThan(5f));
+        }
+
+        [Test]
+        public void DampVerticalVelocityTowards_WithZeroSharpness_PreservesVelocity()
+        {
+            Vector3 velocityMetersPerSecond = _solver.DampVerticalVelocityTowards(
+                new Vector3(0f, -20f, 0f),
+                targetVerticalVelocityMetersPerSecond: 0f,
+                dampingSharpnessPerSecond: 0f,
+                fixedDeltaTime: 0.02f);
+
+            Assert.That(velocityMetersPerSecond.y, Is.EqualTo(-20f));
         }
 
         [Test]

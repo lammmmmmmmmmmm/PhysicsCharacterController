@@ -29,6 +29,14 @@ namespace PhysicsCharacterController
         [SerializeField] private float _movementInputThreshold = 0.01f;
         [SerializeField] private float _collisionSweepSkinMeters = 0.05f;
 
+        [Header("Water Entry")]
+        [Tooltip("Exponential damping applied while inherited terrestrial vertical velocity blends into swimming movement.")]
+        [Min(0f)]
+        [SerializeField] private float _entryVerticalVelocityDampingSharpnessPerSecond = 40f;
+        [Tooltip("Vertical speed difference below which the water-entry handoff is considered complete.")]
+        [Min(0f)]
+        [SerializeField] private float _entryVerticalVelocityStopThresholdMetersPerSecond = 0.05f;
+
         [Header("Terrestrial Exit Recovery")]
         [Tooltip("Maximum distance searched for a collision-free upright pose after leaving water.")]
         [Min(0f)]
@@ -63,6 +71,8 @@ namespace PhysicsCharacterController
         public float DecelerationMetersPerSecondSquared => _decelerationMetersPerSecondSquared;
         public float MovementInputThreshold => _movementInputThreshold;
         public float CollisionSweepSkinMeters => _collisionSweepSkinMeters;
+        public float EntryVerticalVelocityDampingSharpnessPerSecond => _entryVerticalVelocityDampingSharpnessPerSecond;
+        public float EntryVerticalVelocityStopThresholdMetersPerSecond => _entryVerticalVelocityStopThresholdMetersPerSecond;
         public float ExitRecoveryMaximumDistanceMeters => _exitRecoveryMaximumDistanceMeters;
         public float ExitRecoveryProbeIntervalMeters => _exitRecoveryProbeIntervalMeters;
         public float ExitRecoverySpeedMetersPerSecond => _exitRecoverySpeedMetersPerSecond;

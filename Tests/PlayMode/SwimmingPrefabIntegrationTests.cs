@@ -91,10 +91,9 @@ namespace PhysicsCharacterController.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator FallingIntoDeepWater_StopsDownwardVelocityOnSwimmingEntry()
+        public IEnumerator FallingIntoDeepWater_SlowsDownwardVelocityGraduallyOnSwimmingEntry()
         {
-            var stateDriver = _underwaterCollider.GetComponent<
-                PhysicsCharacterController.CharacterStateMachine.CharacterStateMachineDriver>();
+            var stateDriver = _underwaterCollider.GetComponent<CharacterStateMachine.CharacterStateMachineDriver>();
             Rigidbody characterRigidbody = _underwaterCollider.GetComponent<Rigidbody>();
             stateDriver.enabled = false;
             PlaceCharacter(new Vector3(0f, _testPoolSurfaceHeightMeters - 0.5f, 0f));
@@ -107,9 +106,34 @@ namespace PhysicsCharacterController.Tests.PlayMode
             stateDriver.enabled = true;
 
             yield return new WaitForFixedUpdate();
+            float firstSwimmingStepVerticalSpeedMetersPerSecond = characterRigidbody.linearVelocity.y;
 
-            Assert.That(characterRigidbody.linearVelocity.y, Is.GreaterThanOrEqualTo(-0.001f));
+            yield return new WaitForFixedUpdate();
+
+            Assert.That(firstSwimmingStepVerticalSpeedMetersPerSecond, Is.GreaterThan(-20f).And.LessThan(0f));
+            Assert.That(characterRigidbody.linearVelocity.y, Is.GreaterThan(firstSwimmingStepVerticalSpeedMetersPerSecond));
             Assert.That(new Vector2(characterRigidbody.linearVelocity.x, characterRigidbody.linearVelocity.z).magnitude, Is.GreaterThan(1f));
+            Assert.That(_underwaterCollider.GetComponent<BaseCharacterInput>().AreTerrestrialActionsEnabled, Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator RisingIntoDeepWater_SlowsUpwardJumpVelocityGraduallyOnSwimmingEntry()
+        {
+            var stateDriver = _underwaterCollider.GetComponent<CharacterStateMachine.CharacterStateMachineDriver>();
+            Rigidbody characterRigidbody = _underwaterCollider.GetComponent<Rigidbody>();
+            stateDriver.enabled = false;
+            PlaceCharacter(new Vector3(0f, _testPoolSurfaceHeightMeters - 0.5f, 0f));
+
+            yield return new WaitForFixedUpdate();
+
+            CharacterWaterSensor waterSensor = _underwaterCollider.GetComponent<CharacterWaterSensor>();
+            Assert.That(waterSensor.IsSwimmingEntryThresholdReached, Is.True);
+            characterRigidbody.linearVelocity = Vector3.up * 10f;
+            stateDriver.enabled = true;
+
+            yield return new WaitForFixedUpdate();
+
+            Assert.That(characterRigidbody.linearVelocity.y, Is.GreaterThan(0f).And.LessThan(10f));
             Assert.That(_underwaterCollider.GetComponent<BaseCharacterInput>().AreTerrestrialActionsEnabled, Is.False);
         }
 
@@ -220,6 +244,33 @@ namespace PhysicsCharacterController.Tests.PlayMode
         }
 
         [Test]
+        public void ProductionUnderwaterCollider_WhenInactive_DefaultsToVertical()
+        {
+            Assert.That(_underwaterCollider.IsActive, Is.False);
+            Assert.That(Vector3.Dot(_underwaterCollider.AcceptedDirection, Vector3.up), Is.GreaterThan(0.999f));
+        }
+
+        [Test]
+        public void UnderwaterEntryWithoutMovement_KeepsTreadingWaterBodyUpright()
+        {
+            Rigidbody characterRigidbody = _underwaterCollider.GetComponent<Rigidbody>();
+            _underwaterCollider.transform.rotation = Quaternion.Euler(0f, 73f, 0f);
+            Physics.SyncTransforms();
+            Transform meshTransform = _underwaterCollider.transform.Find("Mesh");
+            Vector3 facingDirectionBeforeEntry = meshTransform.forward;
+            Assert.That(_underwaterCollider.TryActivate(Vector3.zero), Is.True);
+            CharacterSwimmingVisualOrientation visualOrientation = _underwaterCollider.GetComponent<CharacterSwimmingVisualOrientation>();
+            visualOrientation.AlignToColliderRotation(
+                _underwaterCollider.AcceptedRotation,
+                characterRigidbody.rotation,
+                swimmingAnimationBlend01: 0f,
+                fixedDeltaTime: 1f);
+
+            Assert.That(Vector3.Dot(meshTransform.up, Vector3.up), Is.GreaterThan(0.999f));
+            Assert.That(Vector3.Dot(meshTransform.forward, facingDirectionBeforeEntry), Is.GreaterThan(0.999f));
+        }
+
+        [Test]
         public void ProductionAnimator_DoesNotConsumeRootMotion()
         {
             Animator animator = _playerInstance.GetComponentInChildren<Animator>(true);
@@ -231,8 +282,7 @@ namespace PhysicsCharacterController.Tests.PlayMode
         public void UnderwaterVisualOrientation_AtSwimmingBlend_UsesAnimatedForwardAxis()
         {
             Assert.That(_underwaterCollider.TryActivate(Vector3.right), Is.True);
-            CharacterSwimmingVisualOrientation visualOrientation =
-                _underwaterCollider.GetComponent<CharacterSwimmingVisualOrientation>();
+            CharacterSwimmingVisualOrientation visualOrientation = _underwaterCollider.GetComponent<CharacterSwimmingVisualOrientation>();
 
             visualOrientation.AlignToColliderRotation(
                 _underwaterCollider.AcceptedRotation,
@@ -250,8 +300,7 @@ namespace PhysicsCharacterController.Tests.PlayMode
         {
             PlaceCharacter(new Vector3(0f, _testPoolFloorTopHeightMeters + 1.02f, 0f));
             Assert.That(_underwaterCollider.TryActivate(Vector3.down), Is.True);
-            CharacterSwimmingVisualOrientation visualOrientation =
-                _underwaterCollider.GetComponent<CharacterSwimmingVisualOrientation>();
+            CharacterSwimmingVisualOrientation visualOrientation = _underwaterCollider.GetComponent<CharacterSwimmingVisualOrientation>();
             Rigidbody characterRigidbody = _underwaterCollider.GetComponent<Rigidbody>();
             Transform meshTransform = _underwaterCollider.transform.Find("Mesh");
             var motionSolver = new SwimmingMotionSolver();
@@ -301,8 +350,7 @@ namespace PhysicsCharacterController.Tests.PlayMode
             yield return new WaitForFixedUpdate();
             yield return new WaitForFixedUpdate();
 
-            var stateDriver = _underwaterCollider.GetComponent<
-                PhysicsCharacterController.CharacterStateMachine.CharacterStateMachineDriver>();
+            var stateDriver = _underwaterCollider.GetComponent<CharacterStateMachine.CharacterStateMachineDriver>();
             stateDriver.enabled = false;
             CharacterAnimator characterAnimator = _underwaterCollider.GetComponent<CharacterAnimator>();
             characterAnimator.UpdateLocomotionAnimationParameter(3f);
@@ -323,15 +371,13 @@ namespace PhysicsCharacterController.Tests.PlayMode
             yield return new WaitForFixedUpdate();
             yield return new WaitForFixedUpdate();
 
-            var stateDriver = _underwaterCollider.GetComponent<
-                PhysicsCharacterController.CharacterStateMachine.CharacterStateMachineDriver>();
+            var stateDriver = _underwaterCollider.GetComponent<CharacterStateMachine.CharacterStateMachineDriver>();
             stateDriver.enabled = false;
             CharacterAnimator characterAnimator = _underwaterCollider.GetComponent<CharacterAnimator>();
             Animator animator = _playerInstance.GetComponentInChildren<Animator>(true);
             animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
             characterAnimator.UpdateLocomotionAnimationParameter(3f);
-            CharacterSwimmingVisualOrientation visualOrientation =
-                _underwaterCollider.GetComponent<CharacterSwimmingVisualOrientation>();
+            CharacterSwimmingVisualOrientation visualOrientation = _underwaterCollider.GetComponent<CharacterSwimmingVisualOrientation>();
             visualOrientation.AlignToColliderRotation(
                 _underwaterCollider.AcceptedRotation,
                 _underwaterCollider.GetComponent<Rigidbody>().rotation,
@@ -380,6 +426,7 @@ namespace PhysicsCharacterController.Tests.PlayMode
             yield return new WaitForFixedUpdate();
             yield return new WaitForFixedUpdate();
             Assert.That(_underwaterCollider.IsActive, Is.True);
+            Assert.That(_underwaterCollider.TryAlign(Vector3.forward, 1f, 360f), Is.True);
 
             Vector3 blockedExitPosition = new Vector3(
                 0f,
@@ -388,8 +435,7 @@ namespace PhysicsCharacterController.Tests.PlayMode
             PlaceCharacter(blockedExitPosition);
 
             bool wasRecoveryObserved = false;
-            CharacterColliderShape[] colliderShapes =
-                _underwaterCollider.GetComponentsInChildren<CharacterColliderShape>(true);
+            CharacterColliderShape[] colliderShapes = _underwaterCollider.GetComponentsInChildren<CharacterColliderShape>(true);
             for (int fixedStepIndex = 0;
                  fixedStepIndex < MAXIMUM_EXIT_RECOVERY_FIXED_STEPS && _underwaterCollider.IsActive;
                  fixedStepIndex++)
@@ -397,9 +443,7 @@ namespace PhysicsCharacterController.Tests.PlayMode
                 Vector3 previousPosition = _underwaterCollider.transform.position;
                 yield return new WaitForFixedUpdate();
 
-                float displacementMeters = Vector3.Distance(
-                    previousPosition,
-                    _underwaterCollider.transform.position);
+                float displacementMeters = Vector3.Distance(previousPosition, _underwaterCollider.transform.position);
                 float maximumStepDistanceMeters = EXIT_RECOVERY_SPEED_METERS_PER_SECOND
                     * Time.fixedDeltaTime
                     + 0.01f;
@@ -465,8 +509,7 @@ namespace PhysicsCharacterController.Tests.PlayMode
 
             bool didBeginRecovery = _underwaterCollider.TryBeginTerrestrialExitRecovery();
 
-            CharacterColliderShape[] colliderShapes =
-                _underwaterCollider.GetComponentsInChildren<CharacterColliderShape>(true);
+            CharacterColliderShape[] colliderShapes = _underwaterCollider.GetComponentsInChildren<CharacterColliderShape>(true);
             Assert.That(didBeginRecovery, Is.False);
             Assert.That(_underwaterCollider.IsTerrestrialExitRecoveryActive, Is.False);
             Assert.That(_underwaterCollider.IsActive, Is.True);
@@ -529,8 +572,7 @@ namespace PhysicsCharacterController.Tests.PlayMode
             Rigidbody characterRigidbody = _underwaterCollider.GetComponent<Rigidbody>();
             Vector3 swimmingDirection = characterRigidbody.rotation * Vector3.right;
             Assert.That(_underwaterCollider.TryAlign(swimmingDirection, 1f, 360f), Is.True);
-            CharacterSwimmingVisualOrientation visualOrientation =
-                _underwaterCollider.GetComponent<CharacterSwimmingVisualOrientation>();
+            CharacterSwimmingVisualOrientation visualOrientation = _underwaterCollider.GetComponent<CharacterSwimmingVisualOrientation>();
             visualOrientation.AlignToColliderRotation(
                 _underwaterCollider.AcceptedRotation,
                 characterRigidbody.rotation,
@@ -561,8 +603,7 @@ namespace PhysicsCharacterController.Tests.PlayMode
             Vector3 horizontalHeading = characterRigidbody.rotation * Vector3.right;
             Vector3 ascendingSwimmingDirection = (horizontalHeading + Vector3.up).normalized;
             Assert.That(_underwaterCollider.TryAlign(ascendingSwimmingDirection, 1f, 360f), Is.True);
-            CharacterSwimmingVisualOrientation visualOrientation =
-                _underwaterCollider.GetComponent<CharacterSwimmingVisualOrientation>();
+            CharacterSwimmingVisualOrientation visualOrientation = _underwaterCollider.GetComponent<CharacterSwimmingVisualOrientation>();
             Transform meshTransform = _underwaterCollider.transform.Find("Mesh");
             Quaternion authoredMeshLocalRotation = meshTransform.localRotation;
             visualOrientation.AlignToColliderRotation(
@@ -610,6 +651,19 @@ namespace PhysicsCharacterController.Tests.PlayMode
             Assert.That(didDeactivate, Is.True);
             Assert.That(_underwaterCollider.IsActive, Is.False);
             Assert.That(uprightCollider.IsPhysicsEnabled, Is.True);
+            Assert.That(Vector3.Dot(_underwaterCollider.AcceptedDirection, Vector3.up), Is.GreaterThan(0.999f));
+        }
+
+        [Test]
+        public void ReactivateWithoutInput_AfterDownwardSwim_UsesVerticalDefault()
+        {
+            Assert.That(_underwaterCollider.TryActivate(Vector3.down), Is.True);
+            Assert.That(_underwaterCollider.TryDeactivate(), Is.True);
+
+            bool didReactivate = _underwaterCollider.TryActivate(Vector3.zero);
+
+            Assert.That(didReactivate, Is.True);
+            Assert.That(Vector3.Dot(_underwaterCollider.AcceptedDirection, Vector3.up), Is.GreaterThan(0.999f));
         }
 
         [Test]
@@ -666,7 +720,7 @@ namespace PhysicsCharacterController.Tests.PlayMode
 
         private static void ReleaseAddressableAsset(AsyncOperationHandle<GameObject> handle)
         {
-            UnityEngine.AddressableAssets.Addressables.Release(handle);
+            Addressables.Release(handle);
         }
     }
 }

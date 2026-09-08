@@ -18,6 +18,7 @@ namespace PhysicsCharacterController
 
         private readonly SwimmingMotionSolver _motionSolver = new();
         private readonly SwimmingStateResolver _stateResolver = new();
+        private bool _isEntryVerticalVelocityDampingActive;
 
         public float CurrentSpeedMetersPerSecond { get; private set; }
         public Vector3 RequestedDirection { get; private set; }
@@ -26,9 +27,20 @@ namespace PhysicsCharacterController
 
         #region Public Methods
 
-        public void StopSinkingOnSwimmingEntry()
+        public void BeginSwimmingEntryVelocityDamping()
         {
-            _rigidbody.linearVelocity = _motionSolver.RemoveDownwardVelocity(_rigidbody.linearVelocity);
+            _isEntryVerticalVelocityDampingActive = Mathf.Abs(_rigidbody.linearVelocity.y)
+                > _settingsSO.EntryVerticalVelocityStopThresholdMetersPerSecond;
+            if (!_isEntryVerticalVelocityDampingActive)
+            {
+                return;
+            }
+
+            _rigidbody.linearVelocity = _motionSolver.DampVerticalVelocityTowards(
+                _rigidbody.linearVelocity,
+                0f,
+                _settingsSO.EntryVerticalVelocityDampingSharpnessPerSecond,
+                Time.fixedDeltaTime);
         }
 
         public bool ShouldDive()
@@ -64,6 +76,7 @@ namespace PhysicsCharacterController
         {
             bool wasUnderwaterColliderActive = _underwaterCollider.IsActive;
             Quaternion previousCharacterRootRotation = _rigidbody.rotation;
+            Vector3 previousAcceptedDirection = _underwaterCollider.AcceptedDirection;
             if (!_underwaterCollider.TryDeactivate())
             {
                 return false;
@@ -71,7 +84,7 @@ namespace PhysicsCharacterController
 
             if (wasUnderwaterColliderActive)
             {
-                _characterRotation.SetFacingDirectionImmediately(_underwaterCollider.AcceptedDirection);
+                _characterRotation.SetFacingDirectionImmediately(previousAcceptedDirection);
                 _visualOrientation.PreserveWorldRotationAfterRootRotation(previousCharacterRootRotation, _rigidbody.rotation);
             }
 
@@ -125,11 +138,15 @@ namespace PhysicsCharacterController
                 fixedDeltaTime);
 
             ApplyTargetVelocity(targetVelocity, fixedDeltaTime);
-            _rigidbody.linearVelocity = _motionSolver.ClampUpwardVelocityToSurface(
-                _rigidbody.linearVelocity,
-                transform.position.y,
-                SurfaceTargetRootHeightMeters,
-                fixedDeltaTime);
+            if (!_isEntryVerticalVelocityDampingActive)
+            {
+                _rigidbody.linearVelocity = _motionSolver.ClampUpwardVelocityToSurface(
+                    _rigidbody.linearVelocity,
+                    transform.position.y,
+                    SurfaceTargetRootHeightMeters,
+                    fixedDeltaTime);
+            }
+
             UpdateAnimationSpeed(RequestedDirection.magnitude, speedMetersPerSecond, fixedDeltaTime);
             _visualOrientation.ReturnToUpright(fixedDeltaTime);
         }
@@ -172,6 +189,7 @@ namespace PhysicsCharacterController
         public void ResetMovement()
         {
             CancelTerrestrialExitRecovery();
+            _isEntryVerticalVelocityDampingActive = false;
             CurrentSpeedMetersPerSecond = 0f;
             RequestedDirection = Vector3.zero;
             _visualOrientation.ResetImmediately();
@@ -212,12 +230,29 @@ namespace PhysicsCharacterController
 
         private void ApplyTargetVelocity(Vector3 targetVelocity, float fixedDeltaTime)
         {
+            Vector3 currentVelocity = _rigidbody.linearVelocity;
             Vector3 velocity = _motionSolver.MoveVelocity(
-                _rigidbody.linearVelocity,
+                currentVelocity,
                 targetVelocity,
                 _settingsSO.AccelerationMetersPerSecondSquared,
                 _settingsSO.DecelerationMetersPerSecondSquared,
                 fixedDeltaTime);
+
+            if (_isEntryVerticalVelocityDampingActive)
+            {
+                Vector3 dampedVelocity = _motionSolver.DampVerticalVelocityTowards(
+                    currentVelocity,
+                    targetVelocity.y,
+                    _settingsSO.EntryVerticalVelocityDampingSharpnessPerSecond,
+                    fixedDeltaTime);
+                velocity.y = dampedVelocity.y;
+
+                if (Mathf.Abs(velocity.y - targetVelocity.y) <= _settingsSO.EntryVerticalVelocityStopThresholdMetersPerSecond)
+                {
+                    velocity.y = targetVelocity.y;
+                    _isEntryVerticalVelocityDampingActive = false;
+                }
+            }
 
             float travelDistanceMeters = velocity.magnitude * fixedDeltaTime;
             if (travelDistanceMeters > 0f && _rigidbody.SweepTest(
