@@ -91,6 +91,29 @@ namespace PhysicsCharacterController.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator FallingIntoDeepWater_StopsDownwardVelocityOnSwimmingEntry()
+        {
+            var stateDriver = _underwaterCollider.GetComponent<
+                PhysicsCharacterController.CharacterStateMachine.CharacterStateMachineDriver>();
+            Rigidbody characterRigidbody = _underwaterCollider.GetComponent<Rigidbody>();
+            stateDriver.enabled = false;
+            PlaceCharacter(new Vector3(0f, _testPoolSurfaceHeightMeters - 0.5f, 0f));
+
+            yield return new WaitForFixedUpdate();
+
+            CharacterWaterSensor waterSensor = _underwaterCollider.GetComponent<CharacterWaterSensor>();
+            Assert.That(waterSensor.IsSwimmingEntryThresholdReached, Is.True);
+            characterRigidbody.linearVelocity = new Vector3(2f, -20f, 1f);
+            stateDriver.enabled = true;
+
+            yield return new WaitForFixedUpdate();
+
+            Assert.That(characterRigidbody.linearVelocity.y, Is.GreaterThanOrEqualTo(-0.001f));
+            Assert.That(new Vector2(characterRigidbody.linearVelocity.x, characterRigidbody.linearVelocity.z).magnitude, Is.GreaterThan(1f));
+            Assert.That(_underwaterCollider.GetComponent<BaseCharacterInput>().AreTerrestrialActionsEnabled, Is.False);
+        }
+
+        [UnityTest]
         public IEnumerator ShallowImmersion_RetainsTerrestrialColliderAndMovementState()
         {
             PlaceCharacter(new Vector3(0f, _testPoolSurfaceHeightMeters + 0.4f, 0f));

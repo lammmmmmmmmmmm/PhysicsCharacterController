@@ -26,6 +26,11 @@ namespace PhysicsCharacterController
 
         #region Public Methods
 
+        public void StopSinkingOnSwimmingEntry()
+        {
+            _rigidbody.linearVelocity = _motionSolver.RemoveDownwardVelocity(_rigidbody.linearVelocity);
+        }
+
         public bool ShouldDive()
         {
             Vector2 movementInput = _input.GetMoveInput();

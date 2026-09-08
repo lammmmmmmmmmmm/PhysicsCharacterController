@@ -50,6 +50,26 @@ namespace PhysicsCharacterController.Tests
         }
 
         [Test]
+        public void RemoveDownwardVelocity_WhenFalling_PreservesHorizontalVelocityAndStopsDescent()
+        {
+            Vector3 velocityMetersPerSecond = _solver.RemoveDownwardVelocity(new Vector3(4f, -20f, -3f));
+
+            Assert.That(
+                velocityMetersPerSecond,
+                Is.EqualTo(new Vector3(4f, 0f, -3f)).Using(Vector3ComparerWithEqualsOperator.Instance));
+        }
+
+        [Test]
+        public void RemoveDownwardVelocity_WhenRising_PreservesJumpVelocity()
+        {
+            Vector3 velocityMetersPerSecond = _solver.RemoveDownwardVelocity(new Vector3(4f, 5f, -3f));
+
+            Assert.That(
+                velocityMetersPerSecond,
+                Is.EqualTo(new Vector3(4f, 5f, -3f)).Using(Vector3ComparerWithEqualsOperator.Instance));
+        }
+
+        [Test]
         public void CalculateSurfaceTargetVelocity_BelowSurface_ClampsUpwardStabilizationSpeed()
         {
             Vector3 velocity = _solver.CalculateSurfaceTargetVelocity(

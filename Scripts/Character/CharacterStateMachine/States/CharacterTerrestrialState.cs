@@ -31,6 +31,13 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
 
         protected override void OnFixedUpdate(float fixedDeltaTime)
         {
+            // A transition requested during this tick enters swimming immediately. Do not let the
+            // outgoing terrestrial branch reapply gravity after swimming has stopped the fall.
+            if (_context.WaterSensor.IsSwimmingEntryThresholdReached)
+            {
+                return;
+            }
+
             _context.CharacterGravity.ApplyGravity();
             ApplyMovementByInput();
             _context.CharacterJump.HandleCoyoteTime(fixedDeltaTime);

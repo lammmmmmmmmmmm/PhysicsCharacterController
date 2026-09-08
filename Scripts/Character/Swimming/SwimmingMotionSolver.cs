@@ -18,6 +18,12 @@ namespace PhysicsCharacterController
             return Vector3.ClampMagnitude(forward * movementInput.y + right * movementInput.x, 1f);
         }
 
+        public Vector3 RemoveDownwardVelocity(Vector3 velocityMetersPerSecond)
+        {
+            velocityMetersPerSecond.y = Mathf.Max(0f, velocityMetersPerSecond.y);
+            return velocityMetersPerSecond;
+        }
+
         public Vector3 CalculateSurfaceTargetVelocity(
             Vector3 surfaceDirection,
             float speedMetersPerSecond,
