@@ -21,6 +21,8 @@ namespace PhysicsCharacterController
         private float _queuedBaseSourceSpeed;
 
         private bool _isTransitionPlayingOnBaseLayer;
+        private AnimancerComponent.DisableAction _disableActionBeforeTemporaryVisualDeactivation;
+        private bool _isPreservingPlaybackDuringTemporaryVisualDeactivation;
 
         private AnimancerLayer BaseLayer => _animancer.Layers[BASE_LAYER_INDEX];
 
@@ -60,6 +62,35 @@ namespace PhysicsCharacterController
         #endregion
 
         #region Public Methods
+
+        public void PreservePlaybackDuringTemporaryVisualDeactivation()
+        {
+            if (_isPreservingPlaybackDuringTemporaryVisualDeactivation)
+            {
+                Debug.LogError(
+                    $"Cannot preserve animation playback for '{name}' because temporary visual deactivation is already active.",
+                    this);
+                return;
+            }
+
+            _disableActionBeforeTemporaryVisualDeactivation = _animancer.ActionOnDisable;
+            _animancer.ActionOnDisable = AnimancerComponent.DisableAction.Pause;
+            _isPreservingPlaybackDuringTemporaryVisualDeactivation = true;
+        }
+
+        public void RestoreDisableBehaviorAfterTemporaryVisualReactivation()
+        {
+            if (!_isPreservingPlaybackDuringTemporaryVisualDeactivation)
+            {
+                Debug.LogError(
+                    $"Cannot restore animation disable behavior for '{name}' because no temporary visual deactivation is active.",
+                    this);
+                return;
+            }
+
+            _animancer.ActionOnDisable = _disableActionBeforeTemporaryVisualDeactivation;
+            _isPreservingPlaybackDuringTemporaryVisualDeactivation = false;
+        }
 
         public void SetBase(LinearMixerTransition mixer, StateId tag, float sourceSpeed)
         {
