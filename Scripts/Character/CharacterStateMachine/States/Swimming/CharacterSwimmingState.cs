@@ -1,3 +1,4 @@
+using System;
 using HSM;
 using UnityEngine;
 
@@ -9,6 +10,8 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
 
         public readonly CharacterSurfaceSwimmingState Surface;
         public readonly CharacterUnderwaterSwimmingState Underwater;
+
+        public event Action<bool> OnSwimmingStateChanged;
 
         private readonly CharacterStateContext _context;
         private float _nextBlockedExitWarningTimeSeconds;
@@ -64,6 +67,7 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
             _context.Input.SetTerrestrialActionsEnabled(false);
             _context.Input.SetDiveActionEnabled(_context.SwimmingMovement.UsesDiveButtonControl);
             _context.CharacterCrouch.ApplyStandState();
+            OnSwimmingStateChanged?.Invoke(true);
         }
 
         protected override void OnExit()
@@ -74,6 +78,7 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
             _context.Input.SetTerrestrialActionsEnabled(true);
             _context.CharacterRotationPolicy.SetAutomaticRotationEnabled(true);
             _context.SwimmingMovement.ResetMovement();
+            OnSwimmingStateChanged?.Invoke(false);
         }
 
         private bool TryPrepareTerrestrialExit()

@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using HSM;
 using PhysicsCharacterController.CharacterStateMachine.States;
@@ -46,6 +47,9 @@ namespace PhysicsCharacterController.CharacterStateMachine
         private CharacterRootState _root;
         private string _lastStatePath;
 
+        public bool IsSwimming => _root != null && _root.ActiveChild == _root.Swimming;
+        public event Action<bool> OnSwimmingStateChanged;
+
         private void Reset()
         {
             _characterMove = GetComponent<CharacterMove>();
@@ -85,12 +89,28 @@ namespace PhysicsCharacterController.CharacterStateMachine
 
             _root = new CharacterRootState(null, _context);
             _machine = new StateMachineBuilder(_root).Build();
+            _root.Swimming.OnSwimmingStateChanged += ForwardSwimmingStateChanged;
+        }
+
+        private void OnDestroy()
+        {
+            if (_root == null)
+            {
+                return;
+            }
+
+            _root.Swimming.OnSwimmingStateChanged -= ForwardSwimmingStateChanged;
         }
 
         private void FixedUpdate()
         {
             _machine.FixedTick(Time.fixedDeltaTime);
             LogStatePathIfChanged();
+        }
+
+        private void ForwardSwimmingStateChanged(bool isSwimming)
+        {
+            OnSwimmingStateChanged?.Invoke(isSwimming);
         }
 
         private void LogStatePathIfChanged()
