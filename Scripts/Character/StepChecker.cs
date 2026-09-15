@@ -15,6 +15,9 @@ namespace PhysicsCharacterController
         [SerializeField] private LayerMask _groundMask;
         [Tooltip("Distance from the player center used to check if the player is touching a step")]
         [SerializeField] private float _stepCheckerThreshold = 0.6f;
+        [Tooltip("Angle offset in degrees for the two additional step checks")]
+        [Range(0f, 180f)]
+        [SerializeField] private float _checkAngleDegrees = 45f;
         [Tooltip("Max climbable step height")]
         [SerializeField] private float _maxStepHeight = 0.74f;
         [Tooltip("Vertical speed used while automatically climbing a step")]
@@ -60,20 +63,19 @@ namespace PhysicsCharacterController
             }
 
             bool isTouchingStep = false;
-            Vector3 bottomStepPos = transform.position - new Vector3(0f, _feetOffset, 0f) +
-                                    new Vector3(0f, 0.05f, 0f);
+            Vector3 bottomStepPos = transform.position - new Vector3(0f, _feetOffset, 0f) + new Vector3(0f, 0.05f, 0f);
 
             if (CheckStepInDirection(bottomStepPos, globalForward))
             {
                 isTouchingStep = true;
             }
 
-            if (CheckStepInDirection(bottomStepPos, Quaternion.AngleAxis(45, transform.up) * globalForward))
+            if (CheckStepInDirection(bottomStepPos, Quaternion.AngleAxis(_checkAngleDegrees, transform.up) * globalForward))
             {
                 isTouchingStep = true;
             }
 
-            if (CheckStepInDirection(bottomStepPos, Quaternion.AngleAxis(-45, transform.up) * globalForward))
+            if (CheckStepInDirection(bottomStepPos, Quaternion.AngleAxis(-_checkAngleDegrees, transform.up) * globalForward))
             {
                 isTouchingStep = true;
             }
@@ -133,19 +135,19 @@ namespace PhysicsCharacterController
             Gizmos.DrawLine(maxStepHeightPos, maxStepHeightPos + forward * (_stepCheckerThreshold + 0.05f));
             Handles.Label(maxStepHeightPos + forward * (_stepCheckerThreshold + 0.05f), "Step Forward");
 
-            // 45 degrees
-            Vector3 forward45 = Quaternion.AngleAxis(45, Vector3.up) * forward;
-            Gizmos.DrawLine(bottomStepPos, bottomStepPos + forward45 * _stepCheckerThreshold);
-            Handles.Label(bottomStepPos + forward45 * _stepCheckerThreshold, "Step 45");
-            Gizmos.DrawLine(maxStepHeightPos, maxStepHeightPos + forward45 * (_stepCheckerThreshold + 0.05f));
-            Handles.Label(maxStepHeightPos + forward45 * (_stepCheckerThreshold + 0.05f), "Step 45");
+            // Positive angle
+            Vector3 forwardPositiveAngle = Quaternion.AngleAxis(_checkAngleDegrees, transform.up) * forward;
+            Gizmos.DrawLine(bottomStepPos, bottomStepPos + forwardPositiveAngle * _stepCheckerThreshold);
+            Handles.Label(bottomStepPos + forwardPositiveAngle * _stepCheckerThreshold, $"Step {_checkAngleDegrees:0.#}");
+            Gizmos.DrawLine(maxStepHeightPos, maxStepHeightPos + forwardPositiveAngle * (_stepCheckerThreshold + 0.05f));
+            Handles.Label(maxStepHeightPos + forwardPositiveAngle * (_stepCheckerThreshold + 0.05f), $"Step {_checkAngleDegrees:0.#}");
 
-            // -45 degrees
-            Vector3 forwardMinus45 = Quaternion.AngleAxis(-45, Vector3.up) * forward;
-            Gizmos.DrawLine(bottomStepPos, bottomStepPos + forwardMinus45 * _stepCheckerThreshold);
-            Handles.Label(bottomStepPos + forwardMinus45 * _stepCheckerThreshold, "Step -45");
-            Gizmos.DrawLine(maxStepHeightPos, maxStepHeightPos + forwardMinus45 * (_stepCheckerThreshold + 0.05f));
-            Handles.Label(maxStepHeightPos + forwardMinus45 * (_stepCheckerThreshold + 0.05f), "Step -45");
+            // Negative angle
+            Vector3 forwardNegativeAngle = Quaternion.AngleAxis(-_checkAngleDegrees, transform.up) * forward;
+            Gizmos.DrawLine(bottomStepPos, bottomStepPos + forwardNegativeAngle * _stepCheckerThreshold);
+            Handles.Label(bottomStepPos + forwardNegativeAngle * _stepCheckerThreshold, $"Step -{_checkAngleDegrees:0.#}");
+            Gizmos.DrawLine(maxStepHeightPos, maxStepHeightPos + forwardNegativeAngle * (_stepCheckerThreshold + 0.05f));
+            Handles.Label(maxStepHeightPos + forwardNegativeAngle * (_stepCheckerThreshold + 0.05f), $"Step -{_checkAngleDegrees:0.#}");
         }
 #endif
     }
