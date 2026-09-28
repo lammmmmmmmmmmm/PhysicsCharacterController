@@ -4,8 +4,8 @@ namespace PhysicsCharacterController
 {
     /// <summary>
     /// Visually decouples the character mesh from physics jitter, gated by surface roughness.
-    /// On smooth ground (flat or gradual slopes) the mesh locks to the body 1:1, so it can never
-    /// clip or float. Rough terrain is detected by how fast the ground contact normal varies;
+    /// On smooth ground (flat or gradual slopes) the mesh locks to the body after landing recovery.
+    /// Rough terrain is detected by how fast the ground contact normal varies;
     /// there, vertical smoothing fades in to absorb the bumps. Horizontal rattle is always
     /// filtered tightly so stopping never reads as sliding. Attach to the mesh child of the
     /// physics root.
@@ -44,6 +44,7 @@ namespace PhysicsCharacterController
         {
             _smoothedWorldPosition = GetTargetWorldPosition();
             _smoothVelocity = Vector3.zero;
+            _verticalSmoothing.Reset();
             _surfaceRoughnessTracker.Reset();
         }
 
@@ -66,11 +67,12 @@ namespace PhysicsCharacterController
 
             Vector3 targetWorldPosition = GetTargetWorldPosition();
 
-            float verticalSmoothTimeSeconds = _verticalSmoothing.SelectSmoothTimeSeconds(isGrounded, Time.deltaTime);
-            if (isGrounded)
-            {
-                verticalSmoothTimeSeconds *= roughness01;
-            }
+            float verticalOffsetMeters = _smoothedWorldPosition.y - targetWorldPosition.y;
+            float verticalSmoothTimeSeconds = _verticalSmoothing.UpdateSmoothTimeSeconds(
+                isGrounded,
+                Time.deltaTime,
+                verticalOffsetMeters,
+                roughness01);
 
             float smoothedY = Mathf.SmoothDamp(_smoothedWorldPosition.y, targetWorldPosition.y, ref _smoothVelocity.y, verticalSmoothTimeSeconds);
             smoothedY = Mathf.Clamp(
