@@ -54,6 +54,8 @@ namespace PhysicsCharacterController.Tests.PlayMode
             _testPoolSurfaceHeightMeters = _waterVolume.SurfaceHeightMeters;
             _testPoolFloorTopHeightMeters = _poolInstance.transform.Find("Pool Bottom").GetComponent<Collider>().bounds.max.y;
 
+            // Keep collider-only tests clear of the currently open gameplay scene.
+            PlaceCharacter(new Vector3(0f, _testPoolSurfaceHeightMeters + 5f, 0f));
             FindProductionInputAndSettings();
         }
 
@@ -140,6 +142,9 @@ namespace PhysicsCharacterController.Tests.PlayMode
             yield return new WaitForFixedUpdate();
             yield return new WaitForFixedUpdate();
             yield return new WaitForFixedUpdate();
+
+            float diveActionDeadlineSeconds = Time.realtimeSinceStartup + 2f;
+            yield return new WaitUntil(() => input.IsDiveActionEnabled || Time.realtimeSinceStartup >= diveActionDeadlineSeconds);
 
             Assert.That(input.IsDiveActionEnabled, Is.True);
             InputSystem.QueueStateEvent(_gamepad, new GamepadState().WithButton(GamepadButton.West));

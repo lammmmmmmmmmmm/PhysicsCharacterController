@@ -12,6 +12,8 @@ namespace PhysicsCharacterController
         private object _lastRejectedOwner;
         private int _priority;
         private AnimationClip _activeAnimationClip;
+        private AnimancerState _activeState;
+        private readonly AnimationPlaybackCallbacks _callbacks = new();
 
         public AnimationLayerChannel(AnimationChannelSO animationChannelSO, AnimancerLayer layer)
         {
@@ -25,8 +27,34 @@ namespace PhysicsCharacterController
 
         #region Public Methods
 
-        public bool Play(object animationOwner, int animationPriority, AnimationClip animationClip, float fadeDurationSeconds,
-            bool shouldRestartAnimation = false)
+        public bool IsOwnedBy(object owner) => _owner == owner && _activeState == _layer.CurrentState;
+
+        public void UpdateCallbacks()
+        {
+            if (_activeState == null || _activeState != _layer.CurrentState) { _callbacks.Cancel(); return; }
+            _callbacks.Advance(_activeState.NormalizedTime);
+        }
+
+        public bool PlayWithCallbacks(object owner, int priority, AnimationClip clip, float fadeSeconds,
+            float playbackSpeed, float contactTime01, System.Action contact, System.Action completed)
+        {
+            if (!Play(owner, priority, clip, fadeSeconds, true)) return false;
+            SetSpeed(owner, playbackSpeed);
+            _callbacks.Begin(contactTime01, contact, completed);
+            return true;
+        }
+
+        public void SetSpeed(object animationOwner, float playbackSpeed)
+        {
+            if (_owner != animationOwner)
+            {
+                Debug.LogWarning("Rejected animation speed change from a non-owner.");
+                return;
+            }
+            _layer.CurrentState.Speed = playbackSpeed;
+        }
+
+        public bool Play(object animationOwner, int animationPriority, AnimationClip animationClip, float fadeDurationSeconds, bool shouldRestartAnimation = false)
         {
             if (!CanControl(animationOwner, animationPriority))
             {
@@ -44,7 +72,10 @@ namespace PhysicsCharacterController
                 return true; // Same owner, same clip: nothing to do.
             }
 
+            _callbacks.Cancel();
             AnimancerState animationState = _layer.Play(animationClip, fadeDurationSeconds);
+            _activeState = animationState;
+            animationState.Speed = 1f;
             if (shouldRestartAnimation)
             {
                 animationState.Time = 0f;
@@ -105,6 +136,8 @@ namespace PhysicsCharacterController
 
         private void ClearOwnership()
         {
+            _callbacks.Cancel();
+            _activeState = null;
             _owner = null;
             _priority = 0;
             _activeAnimationClip = null;

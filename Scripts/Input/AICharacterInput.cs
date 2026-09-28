@@ -3,106 +3,188 @@ using UnityEngine;
 
 namespace PhysicsCharacterController
 {
+    public enum NavigationStatus { Stopped, Pending, Moving, Arrived, Unreachable }
+
     public class AICharacterInput : BaseCharacterInput
     {
         [SerializeField] private Seeker _seeker;
-        [SerializeField] private float _nextWaypointDistance = 3f;
+        [SerializeField, Min(0.01f)] private float _nextWaypointDistance = 3f;
+        [SerializeField, Min(0.01f)] private float _stoppingDistanceMeters = 0.3f;
+        [Tooltip("Maximum horizontal offset accepted when A* projects the requested destination onto the graph.")]
+        [SerializeField, Min(0f)] private float _pathEndpointToleranceMeters = 0.75f;
 
-        // Pathfinding variables
         private Path _currentPath;
+        private Path _requestedPath;
         private int _currentWaypointIndex;
-        private bool _reachedEndOfPath = true;
-        private Vector3 _currentTarget;
+        private ulong _requestVersion;
+        private Vector3 _destinationMeters;
+        private Vector3 _waypointMeters;
+        public NavigationStatus Status { get; private set; }
+        // Preserve the legacy idle/completed flag; Status distinguishes failure from arrival.
+        public bool HasReachedDestination => Status != NavigationStatus.Pending && Status != NavigationStatus.Moving;
+        public Vector3 CurrentTargetPositionMeters => _destinationMeters;
 
-        public bool HasReachedDestination => _reachedEndOfPath;
-        public Vector3 CurrentTargetPositionMeters => _currentTarget;
+        #region Unity Lifecycle
 
         private void Update()
         {
-            UpdateCurrentTarget();
+            AdvanceWaypoint();
         }
+
+        private void OnDisable()
+        {
+            Stop();
+        }
+
+        #endregion
+
+        #region Public Methods
 
         public override float GetMoveAngle()
         {
-            if (!AreNormalActionsEnabled)
+            if (!AreNormalActionsEnabled || Status != NavigationStatus.Moving)
             {
                 return transform.eulerAngles.y;
             }
 
-            Vector3 directionToTarget = (_currentTarget - transform.position).normalized;
-            float angle = Mathf.Atan2(directionToTarget.x, directionToTarget.z) * Mathf.Rad2Deg;
-
-            return angle;
+            Vector3 direction = _waypointMeters - transform.position;
+            return Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
         }
 
         public override Vector2 GetMoveInput()
         {
-            if (!AreNormalActionsEnabled)
-            {
-                return Vector2.zero;
-            }
-
-            return _reachedEndOfPath ? Vector2.zero : Vector2.one;
+            return AreNormalActionsEnabled && Status == NavigationStatus.Moving ? Vector2.one : Vector2.zero;
         }
 
         public void SetTarget(Vector3 targetPosition)
         {
-            _currentTarget = targetPosition;
-            _seeker.StartPath(transform.position, targetPosition, OnPathComplete);
+            SetDestination(targetPosition, _stoppingDistanceMeters);
+        }
+
+        public void SetDestination(Vector3 positionMeters, float stoppingDistanceMeters)
+        {
+            Stop();
+            _destinationMeters = positionMeters;
+            _stoppingDistanceMeters = Mathf.Max(0.01f, stoppingDistanceMeters);
+            if (!isActiveAndEnabled)
+            {
+                Debug.LogWarning("AI navigation request ignored because the input is disabled.", this);
+                return;
+            }
+            if (HorizontalDistanceMeters(transform.position, positionMeters) <= _stoppingDistanceMeters)
+            {
+                Status = NavigationStatus.Arrived;
+                return;
+            }
+            Status = NavigationStatus.Pending;
+            var request = new PathRequest(this, _requestVersion);
+            _requestedPath = ABPath.Construct(transform.position, positionMeters, request.AcceptPath);
+            _requestedPath.Claim(this);
+            _seeker.StartPath(_requestedPath);
         }
 
         public void Stop()
         {
-            _currentPath = null;
+            bool wasMoving = Status == NavigationStatus.Moving;
+            CancelPendingPath();
+            ReleasePath();
             _currentWaypointIndex = 0;
-            _currentTarget = transform.position;
-            if (!_reachedEndOfPath)
-            {
-                _reachedEndOfPath = true;
-                InvokeMoveStop();
-            }
+            _destinationMeters = transform.position;
+            _waypointMeters = transform.position;
+            Status = NavigationStatus.Stopped;
+            if (wasMoving) InvokeMoveStop();
         }
 
-        private void UpdateCurrentTarget()
-        {
-            if (_currentPath == null || _currentPath.vectorPath == null)
-                return;
+        #endregion
 
-            // Check if we need to move to the next waypoint
-            if (_currentWaypointIndex >= _currentPath.vectorPath.Count)
+        #region Private Methods
+
+        private void CancelPendingPath()
+        {
+            _requestVersion++;
+            Path pendingPath = _requestedPath;
+            _requestedPath = null;
+            _seeker.CancelCurrentPathRequest();
+            if (pendingPath != null) pendingPath.Release(this);
+        }
+
+        private void AcceptPath(Path path, ulong requestVersion)
+        {
+            if (requestVersion != _requestVersion || path != _requestedPath || !isActiveAndEnabled)
             {
-                _reachedEndOfPath = true;
+                Debug.Log("Discarded a superseded AI path result.", this);
+                return;
+            }
+
+            _requestedPath = null;
+            if (path.error || path.vectorPath == null || path.vectorPath.Count == 0 ||
+                HorizontalDistanceMeters(path.vectorPath[path.vectorPath.Count - 1], _destinationMeters) > Mathf.Max(_stoppingDistanceMeters, _pathEndpointToleranceMeters))
+            {
+                string failure = path.errorLog;
+                path.Release(this);
+                ReleasePath();
+                Status = NavigationStatus.Unreachable;
+                InvokeMoveStop();
+                Debug.LogWarning($"AI destination {_destinationMeters} is unreachable: {failure}", this);
+                return;
+            }
+            // Transfer the pending request's claim to the active path without returning it to the pool.
+            ReleasePath();
+            _currentPath = path;
+            _currentWaypointIndex = 0;
+            _waypointMeters = path.vectorPath[0];
+            Status = NavigationStatus.Moving;
+            AdvanceWaypoint();
+            if (Status == NavigationStatus.Moving && AreNormalActionsEnabled) InvokeMoveStart(Vector2.one);
+        }
+
+        private void AdvanceWaypoint()
+        {
+            if (_currentPath == null || (Status != NavigationStatus.Moving && Status != NavigationStatus.Pending))
+            {
+                return;
+            }
+
+            if (HorizontalDistanceMeters(_destinationMeters, transform.position) <= _stoppingDistanceMeters)
+            {
+                CancelPendingPath();
+                ReleasePath();
+                Status = NavigationStatus.Arrived;
                 InvokeMoveStop();
                 return;
             }
 
-            float distanceToWaypoint = Vector3.Distance(transform.position, _currentTarget);
-
-            // If close enough to current waypoint, move to next one
-            if (distanceToWaypoint <= _nextWaypointDistance)
+            while (_currentWaypointIndex < _currentPath.vectorPath.Count - 1 &&
+                HorizontalDistanceMeters(transform.position, _currentPath.vectorPath[_currentWaypointIndex]) <= _nextWaypointDistance)
             {
                 _currentWaypointIndex++;
-                if (_currentWaypointIndex >= _currentPath.vectorPath.Count)
-                {
-                    _reachedEndOfPath = true;
-                    InvokeMoveStop();
-                    return;
-                }
             }
-
-            // Set current target to the waypoint we're moving towards
-            _currentTarget = _currentPath.vectorPath[_currentWaypointIndex];
+            _waypointMeters = _currentWaypointIndex == _currentPath.vectorPath.Count - 1
+                ? _destinationMeters : _currentPath.vectorPath[_currentWaypointIndex];
         }
 
-        private void OnPathComplete(Path p)
+        private void ReleasePath()
         {
-            if (!p.error)
-            {
-                _currentPath = p;
-                _currentWaypointIndex = 0;
-                _reachedEndOfPath = false;
-                InvokeMoveStart(Vector2.one);
-            }
+            if (_currentPath == null) return;
+            _currentPath.Release(this);
+            _currentPath = null;
         }
+
+        // Graph nodes lie on the floor; the controller root sits at the collider center.
+        private static float HorizontalDistanceMeters(Vector3 firstMeters, Vector3 secondMeters)
+        {
+            return new Vector2(firstMeters.x - secondMeters.x, firstMeters.z - secondMeters.z).magnitude;
+        }
+
+        private sealed class PathRequest
+        {
+            private readonly AICharacterInput _input;
+            private readonly ulong _version;
+
+            public PathRequest(AICharacterInput input, ulong version) { _input = input; _version = version; }
+            public void AcceptPath(Path path) => _input.AcceptPath(path, _version);
+        }
+
+        #endregion
     }
 }

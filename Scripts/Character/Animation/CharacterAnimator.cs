@@ -44,6 +44,10 @@ namespace PhysicsCharacterController
         private void Update()
         {
             SynchronizeBaseStateWithTransition();
+            foreach (AnimationLayerChannel channel in _animationChannels.Values)
+            {
+                channel.UpdateCallbacks();
+            }
         }
 
         private void OnDisable()
@@ -90,6 +94,30 @@ namespace PhysicsCharacterController
 
             _animancer.ActionOnDisable = _disableActionBeforeTemporaryVisualDeactivation;
             _isPreservingPlaybackDuringTemporaryVisualDeactivation = false;
+        }
+
+        public bool IsChannelOwnedBy(AnimationChannelSO channelSO, object owner)
+        {
+            return TryGetAnimationChannel(channelSO, out var channel) && channel.IsOwnedBy(owner);
+        }
+
+        public bool PlayWithCallbacks(AnimationChannelSO channelSO, object owner, int priority, AnimationClip clip,
+            float fadeSeconds, float playbackSpeed, float contactTime01, System.Action contact, System.Action completed)
+        {
+            if (!TryGetAnimationChannel(channelSO, out var channel))
+            {
+                return false;
+            }
+
+            return channel.PlayWithCallbacks(owner, priority, clip, fadeSeconds, playbackSpeed, contactTime01, contact, completed);
+        }
+
+        public void SetChannelSpeed(AnimationChannelSO channelSO, object owner, float playbackSpeed)
+        {
+            if (TryGetAnimationChannel(channelSO, out AnimationLayerChannel channel))
+            {
+                channel.SetSpeed(owner, playbackSpeed);
+            }
         }
 
         public void SetBase(LinearMixerTransition mixer, StateId tag, float sourceSpeed)
