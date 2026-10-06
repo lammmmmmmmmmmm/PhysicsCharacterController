@@ -17,11 +17,11 @@ namespace PhysicsCharacterController.CharacterStateMachine
         public AirborneAnimationDataSO AirborneAnimationData { get; }
         public LocomotionAnimationDataSO SurfaceSwimmingAnimationData { get; }
         public LocomotionAnimationDataSO UnderwaterSwimmingAnimationData { get; }
-        public StateId StandingStateId { get; }
-        public StateId CrouchingStateId { get; }
-        public StateId AirborneStateId { get; }
-        public StateId SurfaceSwimmingStateId { get; }
-        public StateId UnderwaterSwimmingStateId { get; }
+        public StateSO StandingStateId { get; }
+        public StateSO CrouchingStateId { get; }
+        public StateSO AirborneStateId { get; }
+        public StateSO SurfaceSwimmingStateId { get; }
+        public StateSO UnderwaterSwimmingStateId { get; }
 
         public CharacterStateContext(
             CharacterMove characterMove,
@@ -39,11 +39,11 @@ namespace PhysicsCharacterController.CharacterStateMachine
             AirborneAnimationDataSO airborneAnimationData,
             LocomotionAnimationDataSO surfaceSwimmingAnimationData,
             LocomotionAnimationDataSO underwaterSwimmingAnimationData,
-            StateId standingStateId,
-            StateId crouchingStateId,
-            StateId airborneStateId,
-            StateId surfaceSwimmingStateId,
-            StateId underwaterSwimmingStateId)
+            StateSO standingStateId,
+            StateSO crouchingStateId,
+            StateSO airborneStateId,
+            StateSO surfaceSwimmingStateId,
+            StateSO underwaterSwimmingStateId)
         {
             CharacterMove = characterMove;
             CharacterCrouch = characterCrouch;

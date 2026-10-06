@@ -58,14 +58,9 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
 
         private void PlayAirborneClip(bool isRising)
         {
-            var airborneData = _context.AirborneAnimationData;
             _isPlayingJumpClip = isRising;
-
-            var clip = isRising
-                ? airborneData.JumpClip
-                : airborneData.FallClip;
-
-            _context.Animator.SetBase(clip, _context.AirborneStateId, _context.CharacterMove.CurrentSpeed);
+            _context.Animator.SetBase(_context.AirborneAnimationData, isRising, _context.AirborneStateId,
+                _context.CharacterMove.CurrentSpeed);
         }
     }
 }

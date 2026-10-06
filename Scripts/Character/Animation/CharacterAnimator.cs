@@ -13,12 +13,17 @@ namespace PhysicsCharacterController
         [SerializeField] private AnimationChannelSO[] _animationChannelSOs;
 
         private readonly Dictionary<AnimationChannelSO, AnimationLayerChannel> _animationChannels = new();
+        private ICharacterLocomotionOverride _locomotionOverride;
+        private LocomotionAnimationDataSO _requestedLocomotionDataSO;
+        private AirborneAnimationDataSO _requestedAirborneDataSO;
+        private float _baseSourceSpeedMetersPerSecond;
+        private bool _isPlayingJumpAnimation;
         private AnimancerState _activeTransitionState;
         private AnimancerState _currentBaseState;
 
         private LinearMixerTransition _queuedBaseMixer;
         private ClipTransition _queuedBaseClip;
-        private float _queuedBaseSourceSpeed;
+        private float _queuedBaseSourceSpeedMetersPerSecond;
 
         private bool _isTransitionPlayingOnBaseLayer;
         private AnimancerComponent.DisableAction _disableActionBeforeTemporaryVisualDeactivation;
@@ -26,7 +31,8 @@ namespace PhysicsCharacterController
 
         private AnimancerLayer BaseLayer => _animancer.Layers[BASE_LAYER_INDEX];
 
-        public StateId CurrentTag { get; private set; }
+        public StateSO CurrentTag { get; private set; }
+        public bool HasLocomotionOverride { get; private set; }
 
         #region Unity Lifecycle
 
@@ -54,8 +60,7 @@ namespace PhysicsCharacterController
         {
             CancelPendingTransitionPlayback();
             ResetAnimationChannels();
-            _currentBaseState = null;
-            CurrentTag = null;
+            ResetRuntimeStateCache();
         }
 
         private void OnDestroy()
@@ -120,55 +125,57 @@ namespace PhysicsCharacterController
             }
         }
 
-        public void SetBase(LinearMixerTransition mixer, StateId tag, float sourceSpeed)
+        public void SetLocomotionOverride(ICharacterLocomotionOverride locomotionOverride)
         {
-            if (TryGetTransitionSelection(tag, sourceSpeed, out var selection))
-            {
-                CancelPendingTransitionPlayback();
-                QueueBaseAnimation(mixer, sourceSpeed);
-                PlayOneShotOnBaseLayer(selection, sourceSpeed);
-            }
-            else
-            {
-                CancelPendingTransitionPlayback();
-                _currentBaseState = BaseLayer.Play(mixer);
-                TrySetMixerParameter(_currentBaseState, sourceSpeed);
-            }
-
-            CurrentTag = tag;
+            _locomotionOverride = locomotionOverride;
+            RefreshLocomotionOverride();
         }
 
-        public void SetBase(ClipTransition clip, StateId tag, float sourceSpeed)
+        public void SetBase(LocomotionAnimationDataSO animationDataSO, StateSO tag, float sourceSpeedMetersPerSecond)
         {
-            if (TryGetTransitionSelection(tag, sourceSpeed, out var selection))
-            {
-                CancelPendingTransitionPlayback();
-                QueueBaseAnimation(clip);
-                PlayOneShotOnBaseLayer(selection, sourceSpeed);
-            }
-            else
-            {
-                CancelPendingTransitionPlayback();
-                _currentBaseState = BaseLayer.Play(clip);
-            }
-
-            CurrentTag = tag;
+            LocomotionAnimationDataSO overrideSO = _locomotionOverride?.GetLocomotionOverride(tag);
+            PlayBase((overrideSO != null ? overrideSO : animationDataSO).LocomotionMixer, tag, sourceSpeedMetersPerSecond,
+                shouldPlayTransition: overrideSO == null);
+            _requestedLocomotionDataSO = animationDataSO;
+            HasLocomotionOverride = overrideSO != null;
         }
 
-        public void UpdateTransitionMixerParameter(float sourceSpeed)
+        public void SetBase(AirborneAnimationDataSO animationDataSO, bool isJumping, StateSO tag, float sourceSpeedMetersPerSecond)
         {
-            TrySetMixerParameter(_activeTransitionState, sourceSpeed);
+            AirborneAnimationDataSO overrideSO = _locomotionOverride?.GetAirborneOverride(tag);
+            AirborneAnimationDataSO effectiveDataSO = overrideSO != null ? overrideSO : animationDataSO;
+            PlayBase(isJumping ? effectiveDataSO.JumpClip : effectiveDataSO.FallClip, tag, sourceSpeedMetersPerSecond,
+                shouldPlayTransition: overrideSO == null);
+            _requestedAirborneDataSO = animationDataSO;
+            _isPlayingJumpAnimation = isJumping;
+            HasLocomotionOverride = overrideSO != null;
         }
 
-        public void UpdateLocomotionAnimationParameter(float sourceSpeed)
+        public void SetBase(LinearMixerTransition mixer, StateSO tag, float sourceSpeedMetersPerSecond)
         {
+            PlayBase(mixer, tag, sourceSpeedMetersPerSecond, shouldPlayTransition: true);
+        }
+
+        public void SetBase(ClipTransition clip, StateSO tag, float sourceSpeedMetersPerSecond)
+        {
+            PlayBase(clip, tag, sourceSpeedMetersPerSecond, shouldPlayTransition: true);
+        }
+
+        public void UpdateTransitionMixerParameter(float sourceSpeedMetersPerSecond)
+        {
+            TrySetMixerParameter(_activeTransitionState, sourceSpeedMetersPerSecond);
+        }
+
+        public void UpdateLocomotionAnimationParameter(float sourceSpeedMetersPerSecond)
+        {
+            _baseSourceSpeedMetersPerSecond = sourceSpeedMetersPerSecond;
             if (_queuedBaseMixer != null)
             {
-                _queuedBaseSourceSpeed = sourceSpeed;
+                _queuedBaseSourceSpeedMetersPerSecond = sourceSpeedMetersPerSecond;
                 return;
             }
 
-            if (!TrySetMixerParameter(_currentBaseState, sourceSpeed))
+            if (!TrySetMixerParameter(_currentBaseState, sourceSpeedMetersPerSecond))
             {
                 Debug.LogError($"Cannot update locomotion for '{name}' because its active base animation is not a valid mixer state.", this);
             }
@@ -220,6 +227,61 @@ namespace PhysicsCharacterController
 
         #region Private Methods
 
+        private void PlayBase(LinearMixerTransition mixer, StateSO tag, float sourceSpeedMetersPerSecond, bool shouldPlayTransition)
+        {
+            _requestedLocomotionDataSO = null;
+            _requestedAirborneDataSO = null;
+            HasLocomotionOverride = false;
+            _baseSourceSpeedMetersPerSecond = sourceSpeedMetersPerSecond;
+            if (shouldPlayTransition && TryGetTransitionSelection(tag, sourceSpeedMetersPerSecond, out var selection))
+            {
+                CancelPendingTransitionPlayback();
+                QueueBaseAnimation(mixer, sourceSpeedMetersPerSecond);
+                PlayOneShotOnBaseLayer(selection, sourceSpeedMetersPerSecond);
+            }
+            else
+            {
+                CancelPendingTransitionPlayback();
+                _currentBaseState = BaseLayer.Play(mixer);
+                TrySetMixerParameter(_currentBaseState, sourceSpeedMetersPerSecond);
+            }
+
+            CurrentTag = tag;
+        }
+
+        private void PlayBase(ClipTransition clip, StateSO tag, float sourceSpeedMetersPerSecond, bool shouldPlayTransition)
+        {
+            _requestedLocomotionDataSO = null;
+            _requestedAirborneDataSO = null;
+            HasLocomotionOverride = false;
+            _baseSourceSpeedMetersPerSecond = sourceSpeedMetersPerSecond;
+            if (shouldPlayTransition && TryGetTransitionSelection(tag, sourceSpeedMetersPerSecond, out var selection))
+            {
+                CancelPendingTransitionPlayback();
+                QueueBaseAnimation(clip);
+                PlayOneShotOnBaseLayer(selection, sourceSpeedMetersPerSecond);
+            }
+            else
+            {
+                CancelPendingTransitionPlayback();
+                _currentBaseState = BaseLayer.Play(clip);
+            }
+
+            CurrentTag = tag;
+        }
+
+        private void RefreshLocomotionOverride()
+        {
+            if (_requestedLocomotionDataSO != null)
+            {
+                SetBase(_requestedLocomotionDataSO, CurrentTag, _baseSourceSpeedMetersPerSecond);
+            }
+            else if (_requestedAirborneDataSO != null)
+            {
+                SetBase(_requestedAirborneDataSO, _isPlayingJumpAnimation, CurrentTag, _baseSourceSpeedMetersPerSecond);
+            }
+        }
+
         private void InitializeAnimationChannels()
         {
             _animationChannels.Clear();
@@ -230,7 +292,8 @@ namespace PhysicsCharacterController
                 if (animationChannelSO.LayerIndex <= BASE_LAYER_INDEX)
                 {
                     Debug.LogError(
-                        $"Animation channel '{animationChannelSO.name}' targets reserved base layer {BASE_LAYER_INDEX}. Overlay channels must use a higher layer index.",
+                        $"Animation channel '{animationChannelSO.name}' targets reserved base layer {BASE_LAYER_INDEX}. " +
+                        "Overlay channels must use a higher layer index.",
                         this);
                     continue;
                 }
@@ -244,7 +307,8 @@ namespace PhysicsCharacterController
                 if (!configuredLayerIndices.Add(animationChannelSO.LayerIndex))
                 {
                     Debug.LogError(
-                        $"Animation channel '{animationChannelSO.name}' reuses Animancer layer {animationChannelSO.LayerIndex}. Layer indices must be unique.",
+                        $"Animation channel '{animationChannelSO.name}' reuses Animancer layer {animationChannelSO.LayerIndex}. " +
+                        "Layer indices must be unique.",
                         this);
                     continue;
                 }
@@ -277,7 +341,8 @@ namespace PhysicsCharacterController
             return false;
         }
 
-        private bool TryGetTransitionSelection(StateId newTag, float sourceSpeed, out TransitionLibrary.TransitionSelection selection)
+        private bool TryGetTransitionSelection(StateSO newTag, float sourceSpeedMetersPerSecond,
+            out TransitionLibrary.TransitionSelection selection)
         {
             if (!CurrentTag || CurrentTag == newTag)
             {
@@ -286,7 +351,7 @@ namespace PhysicsCharacterController
                 return false;
             }
 
-            if (_transitions.TryGet(CurrentTag, newTag, sourceSpeed, out var transition))
+            if (_transitions.TryGet(CurrentTag, newTag, sourceSpeedMetersPerSecond, out var transition))
             {
                 selection = transition;
                 return true;
@@ -296,26 +361,26 @@ namespace PhysicsCharacterController
             return false;
         }
 
-        private void QueueBaseAnimation(LinearMixerTransition mixer, float sourceSpeed)
+        private void QueueBaseAnimation(LinearMixerTransition mixer, float sourceSpeedMetersPerSecond)
         {
             _queuedBaseClip = null;
             _queuedBaseMixer = mixer;
-            _queuedBaseSourceSpeed = sourceSpeed;
+            _queuedBaseSourceSpeedMetersPerSecond = sourceSpeedMetersPerSecond;
         }
 
         private void QueueBaseAnimation(ClipTransition clip)
         {
             _queuedBaseMixer = null;
             _queuedBaseClip = clip;
-            _queuedBaseSourceSpeed = 0f;
+            _queuedBaseSourceSpeedMetersPerSecond = 0f;
         }
 
-        private void PlayOneShotOnBaseLayer(TransitionLibrary.TransitionSelection selection, float sourceSpeed)
+        private void PlayOneShotOnBaseLayer(TransitionLibrary.TransitionSelection selection, float sourceSpeedMetersPerSecond)
         {
             if (selection.Mode == TransitionLibrary.TransitionMode.Mixer)
             {
                 _activeTransitionState = BaseLayer.Play(selection.Mixer);
-                TrySetMixerParameter(_activeTransitionState, sourceSpeed);
+                TrySetMixerParameter(_activeTransitionState, sourceSpeedMetersPerSecond);
             }
             else
             {
@@ -335,7 +400,7 @@ namespace PhysicsCharacterController
 
             if (_activeTransitionState is LinearMixerState activeTransitionMixerState && IsRuntimeStateValid(activeTransitionMixerState))
             {
-                _queuedBaseSourceSpeed = activeTransitionMixerState.Parameter;
+                _queuedBaseSourceSpeedMetersPerSecond = activeTransitionMixerState.Parameter;
             }
 
             _isTransitionPlayingOnBaseLayer = false;
@@ -348,7 +413,7 @@ namespace PhysicsCharacterController
             if (_queuedBaseMixer != null)
             {
                 _currentBaseState = BaseLayer.Play(_queuedBaseMixer);
-                TrySetMixerParameter(_currentBaseState, _queuedBaseSourceSpeed);
+                TrySetMixerParameter(_currentBaseState, _queuedBaseSourceSpeedMetersPerSecond);
             }
             else if (_queuedBaseClip != null)
             {
@@ -375,7 +440,7 @@ namespace PhysicsCharacterController
         {
             _queuedBaseMixer = null;
             _queuedBaseClip = null;
-            _queuedBaseSourceSpeed = 0f;
+            _queuedBaseSourceSpeedMetersPerSecond = 0f;
         }
 
         private void SynchronizeBaseStateWithTransition()
@@ -393,6 +458,9 @@ namespace PhysicsCharacterController
 
         private void ResetRuntimeStateCache()
         {
+            _requestedLocomotionDataSO = null;
+            _requestedAirborneDataSO = null;
+            HasLocomotionOverride = false;
             _activeTransitionState = null;
             _currentBaseState = null;
             _isTransitionPlayingOnBaseLayer = false;
@@ -408,14 +476,14 @@ namespace PhysicsCharacterController
             }
         }
 
-        private static bool TrySetMixerParameter(AnimancerState state, float sourceSpeed)
+        private static bool TrySetMixerParameter(AnimancerState state, float sourceSpeedMetersPerSecond)
         {
             if (!IsRuntimeStateValid(state) || state is not LinearMixerState mixerState)
             {
                 return false;
             }
 
-            mixerState.Parameter = sourceSpeed;
+            mixerState.Parameter = sourceSpeedMetersPerSecond;
             return true;
         }
 

@@ -4,10 +4,10 @@ namespace PhysicsCharacterController
 {
     public readonly struct TransitionKey : IEquatable<TransitionKey>
     {
-        public readonly StateId From;
-        public readonly StateId To;
+        public readonly StateSO From;
+        public readonly StateSO To;
 
-        public TransitionKey(StateId from, StateId to)
+        public TransitionKey(StateSO from, StateSO to)
         {
             From = from;
             To = to;

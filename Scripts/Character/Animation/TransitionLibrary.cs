@@ -38,15 +38,15 @@ namespace PhysicsCharacterController
         [System.Serializable]
         public class Entry
         {
-            public StateId From;
-            public StateId To;
+            public StateSO From;
+            public StateSO To;
             public float MinSourceSpeed = 0f;
             public float MaxSourceSpeed = float.MaxValue;
             public TransitionMode Mode = TransitionMode.Clip;
             public Animancer.ClipTransition Clip;
             public Animancer.LinearMixerTransition Mixer;
 
-            public bool IsMatching(StateId from, StateId to, float sourceSpeed)
+            public bool IsMatching(StateSO from, StateSO to, float sourceSpeed)
             {
                 return From == from && To == to && sourceSpeed >= MinSourceSpeed && sourceSpeed <= MaxSourceSpeed;
             }
@@ -76,7 +76,7 @@ namespace PhysicsCharacterController
             }
         }
 
-        public bool TryGet(StateId from, StateId to, float sourceSpeed, out TransitionSelection selection)
+        public bool TryGet(StateSO from, StateSO to, float sourceSpeed, out TransitionSelection selection)
         {
             if (!from || !to || Entries == null)
             {

@@ -33,11 +33,11 @@ namespace PhysicsCharacterController.CharacterStateMachine
         [SerializeField] private LocomotionAnimationDataSO _underwaterSwimmingAnimationData;
 
         [Header("State Ids")]
-        [SerializeField] private StateId _standingStateId;
-        [SerializeField] private StateId _crouchingStateId;
-        [SerializeField] private StateId _airborneStateId;
-        [SerializeField] private StateId _surfaceSwimmingStateId;
-        [SerializeField] private StateId _underwaterSwimmingStateId;
+        [SerializeField] private StateSO _standingStateId;
+        [SerializeField] private StateSO _crouchingStateId;
+        [SerializeField] private StateSO _airborneStateId;
+        [SerializeField] private StateSO _surfaceSwimmingStateId;
+        [SerializeField] private StateSO _underwaterSwimmingStateId;
 
         [Header("Debug")]
         [SerializeField] private bool _logActiveStatePath;
