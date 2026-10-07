@@ -78,9 +78,10 @@ namespace PhysicsCharacterController
             }
             Status = NavigationStatus.Pending;
             var request = new PathRequest(this, _requestVersion);
-            _requestedPath = ABPath.Construct(transform.position, positionMeters, request.AcceptPath);
+            _requestedPath = ABPath.Construct(transform.position, positionMeters, null);
             _requestedPath.Claim(this);
-            _seeker.StartPath(_requestedPath);
+            // Seeker callbacks run after endpoint projection and the other path modifiers.
+            _seeker.StartPath(_requestedPath, request.AcceptPath);
         }
 
         public void Stop()
@@ -121,6 +122,14 @@ namespace PhysicsCharacterController
                 HorizontalDistanceMeters(path.vectorPath[path.vectorPath.Count - 1], _destinationMeters) > Mathf.Max(_stoppingDistanceMeters, _pathEndpointToleranceMeters))
             {
                 string failure = path.errorLog;
+                if (!path.error)
+                {
+                    failure = path.vectorPath == null || path.vectorPath.Count == 0
+                        ? "A* returned no waypoints."
+                        : $"Path endpoint {path.vectorPath[path.vectorPath.Count - 1]} is " +
+                          $"{HorizontalDistanceMeters(path.vectorPath[path.vectorPath.Count - 1], _destinationMeters):F2} meters " +
+                          $"from the destination; allowed offset is {Mathf.Max(_stoppingDistanceMeters, _pathEndpointToleranceMeters):F2} meters.";
+                }
                 path.Release(this);
                 ReleasePath();
                 Status = NavigationStatus.Unreachable;

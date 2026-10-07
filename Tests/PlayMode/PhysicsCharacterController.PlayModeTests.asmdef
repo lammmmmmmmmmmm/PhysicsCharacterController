@@ -3,6 +3,10 @@
     "rootNamespace": "PhysicsCharacterController.Tests.PlayMode",
     "references": [
         "PhysicsCharacterController.Runtime",
+        "AstarPathfindingProject",
+        "PackageTools",
+        "Drawing",
+        "UniTask",
         "Unity.InputSystem",
         "Unity.Addressables",
         "Unity.ResourceManager",
