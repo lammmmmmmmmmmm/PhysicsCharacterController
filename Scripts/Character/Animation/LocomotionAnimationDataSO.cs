@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace PhysicsCharacterController
 {
-    [CreateAssetMenu(menuName = "Character Animation/Locomotion Animation Data")]
+    [CreateAssetMenu(menuName = "Physics Character Controller/Character Animation/Locomotion Animation Data")]
     public class LocomotionAnimationDataSO : ScriptableObject
     {
         [SerializeField] private LinearMixerTransition _locomotionMixer;

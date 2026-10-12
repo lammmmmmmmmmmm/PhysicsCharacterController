@@ -3,7 +3,7 @@ using UnityEngine.AddressableAssets;
 
 namespace PhysicsCharacterController.Tests.PlayMode
 {
-    [CreateAssetMenu(fileName = "SwimmingTestAssetConfigSO", menuName = "Character Testing/Swimming Test Asset Config")]
+    [CreateAssetMenu(fileName = "SwimmingTestAssetConfigSO", menuName = "Physics Character Controller/Character Testing/Swimming Test Asset Config")]
     public sealed class SwimmingTestAssetConfigSO : ScriptableObject
     {
         [Header("Production Prefabs")]

@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace PhysicsCharacterController
 {
-    [CreateAssetMenu(menuName = "Character Animation/Transition Library")]
+    [CreateAssetMenu(menuName = "Physics Character Controller/Character Animation/Transition Library")]
     public class TransitionLibrary : ScriptableObject
     {
         public List<Entry> Entries;

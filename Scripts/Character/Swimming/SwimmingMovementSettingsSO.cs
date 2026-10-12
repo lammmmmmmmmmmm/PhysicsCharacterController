@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace PhysicsCharacterController
 {
-    [CreateAssetMenu(fileName = "Swimming Movement Settings", menuName = "Character Movement/Swimming Movement Settings")]
+    [CreateAssetMenu(fileName = "Swimming Movement Settings", menuName = "Physics Character Controller/Character Movement/Swimming Movement Settings")]
     public sealed class SwimmingMovementSettingsSO : ScriptableObject
     {
         [Header("Control")]
