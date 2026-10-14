@@ -54,7 +54,7 @@ public class OnScreenJoystick : OnScreenControl, IPointerDownHandler, IDragHandl
     [Tooltip("How quickly the handle returns to centre on release. 0 = instant.")]
     [SerializeField, Range(0f, 25f)] private float returnSpeed = 15f;
 
-    [Tooltip("Hide joystick visuals while not being touched.")]
+    [Tooltip("Automatically hide joystick visuals while idle in both Dynamic and Fixed modes. Disable to keep them visible.")]
     [SerializeField] private bool hideWhenIdle = true;
 
     // ── Input System ───────────────────────────────────────────────────────────
@@ -118,14 +118,9 @@ public class OnScreenJoystick : OnScreenControl, IPointerDownHandler, IDragHandl
                 if (proxy == null) proxy = touchZone.gameObject.AddComponent<TouchZoneProxy>();
                 proxy.Init(this);
             }
+        }
 
-            SetVisuals(false);
-        }
-        else
-        {
-            // Fixed mode: background is always visible (or starts hidden but still hittable).
-            SetVisuals(!hideWhenIdle);
-        }
+        SetVisuals(!hideWhenIdle);
     }
 
     private void Update()
@@ -225,12 +220,9 @@ public class OnScreenJoystick : OnScreenControl, IPointerDownHandler, IDragHandl
         if (mode == JoystickMode.Dynamic)
         {
             joystickBackground.anchoredPosition = _fixedOrigin;
-            SetVisuals(false);
         }
-        else if (hideWhenIdle)
-        {
-            SetVisuals(false);
-        }
+
+        SetVisuals(!hideWhenIdle);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
