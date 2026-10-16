@@ -11,6 +11,9 @@ namespace PhysicsCharacterController
         [SerializeField] private BoxCollider _volumeCollider;
 
         public float SurfaceHeightMeters => _volumeCollider.bounds.max.y;
+        public BoxCollider VolumeCollider => _volumeCollider;
+
+        #region Unity Lifecycle
 
 #if UNITY_EDITOR
         private void Reset()
@@ -33,5 +36,8 @@ namespace PhysicsCharacterController
             }
         }
 #endif
+
+        #endregion
+
     }
 }
