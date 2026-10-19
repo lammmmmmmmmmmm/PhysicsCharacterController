@@ -8,6 +8,7 @@
         "Drawing",
         "UniTask",
         "Unity.InputSystem",
+        "Unity.InputSystem.TestFramework",
         "Unity.Addressables",
         "Unity.ResourceManager",
         "VContainer",

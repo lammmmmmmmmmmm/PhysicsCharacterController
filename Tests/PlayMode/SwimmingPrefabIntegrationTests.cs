@@ -17,6 +17,7 @@ namespace PhysicsCharacterController.Tests.PlayMode
         private const float EXIT_RECOVERY_SPEED_METERS_PER_SECOND = 4f;
         private const int MAXIMUM_EXIT_RECOVERY_FIXED_STEPS = 40;
 
+        private readonly InputTestFixture _inputFixture = new InputTestFixture();
         private IObjectResolver _container;
         private AsyncOperationHandle<GameObject> _playerPrefabHandle;
         private AsyncOperationHandle<GameObject> _poolPrefabHandle;
@@ -32,12 +33,14 @@ namespace PhysicsCharacterController.Tests.PlayMode
         private Keyboard _keyboard;
         private Gamepad _gamepad;
         private bool _wasGameplayActionMapEnabled;
-        private bool _wasKeyboardAddedForTest;
-        private bool _wasGamepadAddedForTest;
+
+        #region Unity Lifecycle
 
         [UnitySetUp]
         public IEnumerator SetUp()
         {
+            // Isolate queued input from editor focus and native device events.
+            _inputFixture.Setup();
             SwimmingTestAssetConfigSO configSO = Resources.Load<SwimmingTestAssetConfigSO>("SwimmingTestAssetConfigSO");
             _playerPrefabHandle = Addressables.LoadAssetAsync<GameObject>(configSO.PlayerPrefab.RuntimeKey);
             _poolPrefabHandle = Addressables.LoadAssetAsync<GameObject>(configSO.SwimmingPoolPrefab.RuntimeKey);
@@ -69,16 +72,6 @@ namespace PhysicsCharacterController.Tests.PlayMode
                 _gameplayActionMap.Disable();
             }
 
-            if (_wasKeyboardAddedForTest)
-            {
-                InputSystem.RemoveDevice(_keyboard);
-            }
-
-            if (_wasGamepadAddedForTest)
-            {
-                InputSystem.RemoveDevice(_gamepad);
-            }
-
             Object.DestroyImmediate(_playerInstance);
             Object.DestroyImmediate(_poolInstance);
             _container?.Dispose();
@@ -92,7 +85,13 @@ namespace PhysicsCharacterController.Tests.PlayMode
             {
                 ReleaseAddressableAsset(_poolPrefabHandle);
             }
+
+            _inputFixture.TearDown();
         }
+
+        #endregion
+
+        #region Public Methods
 
         [UnityTest]
         public IEnumerator SurfaceImmersion_ActivatesSurfaceSwimmingAnimationState()
@@ -924,6 +923,10 @@ namespace PhysicsCharacterController.Tests.PlayMode
             Assert.That(hit.distance, Is.LessThan(0.3f));
         }
 
+        #endregion
+
+        #region Private Methods
+
         private void PlaceCharacter(Vector3 worldPosition)
         {
             _underwaterCollider.transform.position = worldPosition;
@@ -964,15 +967,8 @@ namespace PhysicsCharacterController.Tests.PlayMode
             _wasGameplayActionMapEnabled = _gameplayActionMap.enabled;
             _gameplayActionMap.Enable();
 
-            _keyboard = Keyboard.current;
-            if (_keyboard == null)
-            {
-                _keyboard = InputSystem.AddDevice<Keyboard>();
-                _wasKeyboardAddedForTest = true;
-            }
-
+            _keyboard = InputSystem.AddDevice<Keyboard>();
             _gamepad = InputSystem.AddDevice<Gamepad>();
-            _wasGamepadAddedForTest = true;
         }
 
         private void PressKeyboardKey(Key key)
@@ -1011,5 +1007,7 @@ namespace PhysicsCharacterController.Tests.PlayMode
         {
             Addressables.Release(handle);
         }
+
+        #endregion
     }
 }
