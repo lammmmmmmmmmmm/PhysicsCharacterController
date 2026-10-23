@@ -23,8 +23,16 @@ namespace PhysicsCharacterController
         [SerializeField] private BaseCharacterInput _input;
         [Tooltip("Source of the max climbable angle: surfaces steeper than it count as walls")]
         [SerializeField] private SlopeChecker _slopeChecker;
+        [Tooltip("Seconds between proactive wall-ray samples. Zero samples every physics step; contact handling always runs every step.")]
+        [Min(0f)] [SerializeField] private float _checkIntervalSeconds;
+#if UNITY_EDITOR
+        [Header("Debug")]
+        [SerializeField] private bool _debug;
+        [SerializeField] private Vector3 _debugForwardDirection = Vector3.forward;
+#endif
 
-        private static readonly float[] CheckAngles = { 0f, 45f, 90f, 135f, 180f, 225f, 270f, 315f };
+        private readonly WallCheckSampling _sampling = new();
+        private readonly Vector3[] _checkDirections = new Vector3[WallCheckSampling.DIRECTION_COUNT];
 
         public bool IsTouchingWall { get; private set; }
         public Vector3 WallNormal { get; private set; }
@@ -37,10 +45,29 @@ namespace PhysicsCharacterController
         private bool _hasSteepContact;
         private Vector3 _steepContactNormal;
         private float _secondsSinceSteepContact = float.PositiveInfinity;
+        private bool _hasProactiveWall;
+        private Vector3 _proactiveWallNormal;
+
+        #region Unity Lifecycle
+
+        private void OnEnable()
+        {
+            _sampling.Reset();
+            _hasProactiveWall = false;
+            _hasSteepContact = false;
+            _secondsSinceSteepContact = float.PositiveInfinity;
+            IsTouchingWall = false;
+            WallNormal = Vector3.zero;
+        }
 
         private void FixedUpdate()
         {
-            CheckWall(_input.HorizontalMoveDirection);
+            Vector3 forwardDirection = _input.HorizontalMoveDirection;
+            if (_sampling.AdvanceAndConsumeSample(Time.fixedDeltaTime, _checkIntervalSeconds, forwardDirection))
+                CheckWall(forwardDirection);
+
+            IsTouchingWall = _hasProactiveWall;
+            WallNormal = _proactiveWallNormal;
 
             if (_hasSteepContact)
             {
@@ -72,6 +99,26 @@ namespace PhysicsCharacterController
             RecordSteepContact(collision);
         }
 
+#if UNITY_EDITOR
+        private void OnDrawGizmos()
+        {
+            if (!_debug) return;
+
+            Gizmos.color = Color.black;
+            WallCheckSampling.FillDirections(_debugForwardDirection, transform.up, _checkDirections);
+            foreach (float heightOffsetMeters in _checkHeightOffsetsMeters)
+            {
+                Vector3 checkOrigin = transform.position + Vector3.up * heightOffsetMeters;
+                foreach (Vector3 checkDirection in _checkDirections)
+                    Gizmos.DrawLine(checkOrigin, checkOrigin + checkDirection * _checkDistance);
+            }
+        }
+#endif
+
+        #endregion
+
+        #region Public Methods
+
         public Vector3 GetVelocityContribution(Vector3 currentVelocity, Vector3 desiredMovement)
         {
             if (!IsTouchingWall)
@@ -82,24 +129,28 @@ namespace PhysicsCharacterController
             return SurfaceVelocityCancellation.CalculateCancellation(desiredMovement, WallNormal);
         }
 
+        #endregion
+
+        #region Private Methods
+
         private void CheckWall(Vector3 forwardDirection)
         {
-            IsTouchingWall = false;
-            WallNormal = Vector3.zero;
+            _hasProactiveWall = false;
+            _proactiveWallNormal = Vector3.zero;
+            Vector3 positionMeters = transform.position;
+            WallCheckSampling.FillDirections(forwardDirection, transform.up, _checkDirections);
 
             foreach (float heightOffsetMeters in _checkHeightOffsetsMeters)
             {
-                Vector3 checkOrigin = GetCheckOrigin(heightOffsetMeters);
+                Vector3 checkOrigin = positionMeters + Vector3.up * heightOffsetMeters;
 
-                foreach (float angle in CheckAngles)
+                foreach (Vector3 checkDirection in _checkDirections)
                 {
-                    Vector3 checkDirection = Quaternion.AngleAxis(angle, transform.up) * forwardDirection;
-
                     if (Physics.Raycast(checkOrigin, checkDirection, out RaycastHit hit, _checkDistance, _wallMask, QueryTriggerInteraction.Ignore)
                         && IsTooSteepToWalk(hit.normal))
                     {
-                        WallNormal = hit.normal;
-                        IsTouchingWall = true;
+                        _proactiveWallNormal = hit.normal;
+                        _hasProactiveWall = true;
                         return;
                     }
                 }
@@ -139,33 +190,7 @@ namespace PhysicsCharacterController
             return _slopeChecker.IsSurfaceUnclimbable(surfaceNormal);
         }
 
-        private Vector3 GetCheckOrigin(float heightOffsetMeters)
-        {
-            return new Vector3(transform.position.x, transform.position.y + heightOffsetMeters, transform.position.z);
-        }
+        #endregion
 
-#if UNITY_EDITOR
-        [Header("Debug")]
-        [SerializeField] private bool _debug;
-        [SerializeField] private Vector3 _debugForwardDirection = Vector3.forward;
-
-        private void OnDrawGizmos()
-        {
-            if (!_debug) return;
-
-            Gizmos.color = Color.black;
-
-            foreach (float heightOffsetMeters in _checkHeightOffsetsMeters)
-            {
-                Vector3 checkOrigin = GetCheckOrigin(heightOffsetMeters);
-
-                foreach (float angle in CheckAngles)
-                {
-                    Vector3 checkDirection = Quaternion.AngleAxis(angle, transform.up) * _debugForwardDirection;
-                    Gizmos.DrawLine(checkOrigin, checkOrigin + checkDirection * _checkDistance);
-                }
-            }
-        }
-#endif
     }
 }
