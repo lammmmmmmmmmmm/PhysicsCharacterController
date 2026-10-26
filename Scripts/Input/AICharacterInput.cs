@@ -12,6 +12,8 @@ namespace PhysicsCharacterController
         [SerializeField, Min(0.01f)] private float _stoppingDistanceMeters = 0.3f;
         [Tooltip("Maximum horizontal offset accepted when A* projects the requested destination onto the graph.")]
         [SerializeField, Min(0f)] private float _pathEndpointToleranceMeters = 0.75f;
+        [Tooltip("Optional local avoidance. Without it the character follows its path straight through other agents.")]
+        [SerializeField] private AICharacterAvoidance _avoidance;
 
         private Path _currentPath;
         private Path _requestedPath;
@@ -29,6 +31,10 @@ namespace PhysicsCharacterController
         private void Update()
         {
             AdvanceWaypoint();
+            if (_avoidance)
+            {
+                _avoidance.SetDesiredTarget(_waypointMeters, _destinationMeters, AreNormalActionsEnabled && Status == NavigationStatus.Moving);
+            }
         }
 
         private void OnDisable()
@@ -48,6 +54,11 @@ namespace PhysicsCharacterController
             }
 
             Vector3 direction = _waypointMeters - transform.position;
+            if (_avoidance)
+            {
+                direction = _avoidance.GetSteeredDirection(direction);
+            }
+
             return Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
         }
 
@@ -164,12 +175,31 @@ namespace PhysicsCharacterController
             }
 
             while (_currentWaypointIndex < _currentPath.vectorPath.Count - 1 &&
-                HorizontalDistanceMeters(transform.position, _currentPath.vectorPath[_currentWaypointIndex]) <= _nextWaypointDistance)
+                (HorizontalDistanceMeters(transform.position, _currentPath.vectorPath[_currentWaypointIndex]) <= _nextWaypointDistance ||
+                 HasPassedWaypoint(_currentWaypointIndex)))
             {
                 _currentWaypointIndex++;
             }
             _waypointMeters = _currentWaypointIndex == _currentPath.vectorPath.Count - 1
                 ? _destinationMeters : _currentPath.vectorPath[_currentWaypointIndex];
+        }
+
+        // Avoidance can hold the character off a waypoint (another agent may stand on it), so a waypoint also counts as
+        // reached once the character is past it along the segment that leads into it. Using the incoming segment keeps
+        // corner waypoints from being skipped before the character has rounded them.
+        private bool HasPassedWaypoint(int waypointIndex)
+        {
+            if (waypointIndex == 0)
+            {
+                return false;
+            }
+
+            Vector3 waypointMeters = _currentPath.vectorPath[waypointIndex];
+            Vector3 incomingDirection = waypointMeters - _currentPath.vectorPath[waypointIndex - 1];
+            Vector3 offsetFromWaypointMeters = transform.position - waypointMeters;
+            incomingDirection.y = 0f;
+            offsetFromWaypointMeters.y = 0f;
+            return Vector3.Dot(offsetFromWaypointMeters, incomingDirection) > 0f;
         }
 
         private void ReleasePath()
