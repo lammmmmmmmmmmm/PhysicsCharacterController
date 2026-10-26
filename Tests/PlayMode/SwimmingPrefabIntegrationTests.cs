@@ -1,4 +1,9 @@
+using System;
 using System.Collections;
+using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
+using NSubstitute;
+using NSubstitute.Core;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
@@ -8,6 +13,7 @@ using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.TestTools;
 using VContainer;
 using VContainer.Unity;
+using Object = UnityEngine.Object;
 
 namespace PhysicsCharacterController.Tests.PlayMode
 {
@@ -33,6 +39,7 @@ namespace PhysicsCharacterController.Tests.PlayMode
         private Keyboard _keyboard;
         private Gamepad _gamepad;
         private bool _wasGameplayActionMapEnabled;
+        private float _querySurfaceHeightMeters;
 
         #region Unity Lifecycle
 
@@ -92,6 +99,48 @@ namespace PhysicsCharacterController.Tests.PlayMode
         #endregion
 
         #region Public Methods
+
+        [Test]
+        public async Task AdditionalWaterQuery_EnablesSwimmingWithoutTriggerAndClearsOnRemoval()
+        {
+            PlaceCharacter(new Vector3(20f, _testPoolSurfaceHeightMeters - 2f, 0f));
+            CharacterWaterSensor sensor = _underwaterCollider.GetComponent<CharacterWaterSensor>();
+            ICharacterWaterQuery query = Substitute.For<ICharacterWaterQuery>();
+            _querySurfaceHeightMeters = _testPoolSurfaceHeightMeters;
+            query.TryGetSurfaceHeight(Arg.Any<Bounds>(), out Arg.Any<float>()).Returns(ReadQuerySurfaceHeight);
+            sensor.SetAdditionalWaterQueries(new[] { query });
+
+            await UniTask.WaitForFixedUpdate();
+            await UniTask.WaitForFixedUpdate();
+
+            Assert.That(sensor.HasWaterVolume, Is.True);
+            Assert.That(sensor.IsSufficientlyImmersed, Is.True);
+            Assert.That(sensor.WaterSurfaceHeightMeters, Is.EqualTo(_querySurfaceHeightMeters));
+            Assert.That(_underwaterCollider.GetComponent<CharacterSwimmingMovement>().CanEnterSwimming, Is.True);
+
+            sensor.SetAdditionalWaterQueries(Array.Empty<ICharacterWaterQuery>());
+            await UniTask.WaitForFixedUpdate();
+            await UniTask.WaitForFixedUpdate();
+
+            Assert.That(sensor.HasWaterVolume, Is.False);
+            Assert.That(sensor.IsSufficientlyImmersed, Is.False);
+            Assert.That(sensor.Immersion01, Is.Zero);
+        }
+
+        [Test]
+        public void DisabledUprightCollider_PreservesCalculatedBoundsWhileDiving()
+        {
+            CharacterColliderShape shape = _underwaterCollider.GetComponent<CharacterColliderShape>();
+            Bounds originalBoundsMeters = shape.CalculateWorldBounds();
+
+            Assert.That(_underwaterCollider.TryActivate(Vector3.forward), Is.True);
+            Bounds divingBoundsMeters = shape.CalculateWorldBounds();
+
+            Assert.That(shape.IsPhysicsEnabled, Is.False);
+            Assert.That(divingBoundsMeters.center, Is.EqualTo(originalBoundsMeters.center));
+            Assert.That(divingBoundsMeters.size, Is.EqualTo(originalBoundsMeters.size));
+            Assert.That(divingBoundsMeters.size.y, Is.GreaterThan(0f));
+        }
 
         [UnityTest]
         public IEnumerator SurfaceImmersion_ActivatesSurfaceSwimmingAnimationState()
@@ -926,6 +975,12 @@ namespace PhysicsCharacterController.Tests.PlayMode
         #endregion
 
         #region Private Methods
+
+        private bool ReadQuerySurfaceHeight(CallInfo call)
+        {
+            call[1] = _querySurfaceHeightMeters;
+            return true;
+        }
 
         private void PlaceCharacter(Vector3 worldPosition)
         {

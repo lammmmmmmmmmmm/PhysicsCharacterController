@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace PhysicsCharacterController
@@ -17,9 +19,9 @@ namespace PhysicsCharacterController
 
         private readonly Collider[] _waterOverlapResults = new Collider[MAX_WATER_OVERLAP_COUNT];
         private readonly SwimmingStateResolver _stateResolver = new();
-        private WaterVolume _activeWaterVolume;
+        private IReadOnlyList<ICharacterWaterQuery> _additionalWaterQueries = Array.Empty<ICharacterWaterQuery>();
 
-        public bool HasWaterVolume => _activeWaterVolume != null;
+        public bool HasWaterVolume { get; private set; }
         public bool IsSufficientlyImmersed { get; private set; }
         public bool IsSwimmingEntryThresholdReached => HasWaterVolume && Immersion01 >= _settingsSO.EnterSwimmingImmersion01;
         public float Immersion01 { get; private set; }
@@ -34,7 +36,8 @@ namespace PhysicsCharacterController
 
         private void OnDisable()
         {
-            _activeWaterVolume = null;
+            HasWaterVolume = false;
+            WaterSurfaceHeightMeters = 0f;
             IsSufficientlyImmersed = false;
             Immersion01 = 0f;
         }
@@ -42,6 +45,11 @@ namespace PhysicsCharacterController
         #endregion
 
         #region Public Methods
+
+        public void SetAdditionalWaterQueries(IReadOnlyList<ICharacterWaterQuery> waterQueries)
+        {
+            _additionalWaterQueries = waterQueries;
+        }
 
         public bool ShouldUseTerrestrialMovementInShallowWater(bool isGrounded, float groundHeightMeters)
         {
@@ -60,15 +68,28 @@ namespace PhysicsCharacterController
 
         private void RefreshWaterState()
         {
-            _activeWaterVolume = SelectHighestWaterVolume();
-            if (_activeWaterVolume == null)
+            WaterVolume selectedVolume = SelectHighestWaterVolume();
+            float selectedSurfaceHeightMeters = selectedVolume != null ? selectedVolume.SurfaceHeightMeters : float.NegativeInfinity;
+            // The upright collider is disabled while diving; Collider.bounds would become empty.
+            Bounds characterBoundsMeters = _additionalWaterQueries.Count > 0 ? _characterColliderShape.CalculateWorldBounds() : default;
+            for (int index = 0; index < _additionalWaterQueries.Count; index++)
             {
+                if (_additionalWaterQueries[index].TryGetSurfaceHeight(characterBoundsMeters, out float surfaceHeightMeters))
+                {
+                    selectedSurfaceHeightMeters = Mathf.Max(selectedSurfaceHeightMeters, surfaceHeightMeters);
+                }
+            }
+
+            HasWaterVolume = !float.IsNegativeInfinity(selectedSurfaceHeightMeters);
+            if (!HasWaterVolume)
+            {
+                WaterSurfaceHeightMeters = 0f;
                 Immersion01 = 0f;
                 IsSufficientlyImmersed = false;
                 return;
             }
 
-            WaterSurfaceHeightMeters = _activeWaterVolume.SurfaceHeightMeters;
+            WaterSurfaceHeightMeters = selectedSurfaceHeightMeters;
             CalculateStandingColliderExtents(out float bottomHeightMeters, out float topHeightMeters);
             Immersion01 = Mathf.InverseLerp(bottomHeightMeters, topHeightMeters, WaterSurfaceHeightMeters);
             IsSufficientlyImmersed = _stateResolver.ResolveSwimmingAvailability(

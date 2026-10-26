@@ -40,6 +40,8 @@ namespace PhysicsCharacterController
 
         #region Public Methods
 
+        public abstract Bounds CalculateWorldBounds();
+
         public void SetHeightPreservingBottom(float heightMeters)
         {
             _requestedHeightMeters = heightMeters;

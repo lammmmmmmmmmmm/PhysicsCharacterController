@@ -19,6 +19,20 @@ namespace PhysicsCharacterController
 
         #region Public Methods
 
+        public override Bounds CalculateWorldBounds()
+        {
+            BoxColliderGeometry geometry = _geometryCalculator.Calculate(transform.position, transform.rotation, transform.lossyScale,
+                _boxCollider.center, _boxCollider.size);
+            Vector3 rightMeters = geometry.Rotation * new Vector3(geometry.HalfExtentsMeters.x, 0f, 0f);
+            Vector3 upMeters = geometry.Rotation * new Vector3(0f, geometry.HalfExtentsMeters.y, 0f);
+            Vector3 forwardMeters = geometry.Rotation * new Vector3(0f, 0f, geometry.HalfExtentsMeters.z);
+            Vector3 extentsMeters = new(
+                Mathf.Abs(rightMeters.x) + Mathf.Abs(upMeters.x) + Mathf.Abs(forwardMeters.x),
+                Mathf.Abs(rightMeters.y) + Mathf.Abs(upMeters.y) + Mathf.Abs(forwardMeters.y),
+                Mathf.Abs(rightMeters.z) + Mathf.Abs(upMeters.z) + Mathf.Abs(forwardMeters.z));
+            return new Bounds(geometry.Center, extentsMeters * 2f);
+        }
+
         public override int OverlapAtPoseNonAlloc(
             Vector3 worldPosition,
             Quaternion worldRotation,

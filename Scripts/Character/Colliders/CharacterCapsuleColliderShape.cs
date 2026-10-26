@@ -19,6 +19,15 @@ namespace PhysicsCharacterController
 
         #region Public Methods
 
+        public override Bounds CalculateWorldBounds()
+        {
+            CapsuleColliderGeometry geometry = _geometryCalculator.Calculate(transform.position, transform.rotation, transform.lossyScale,
+                _capsuleCollider.center, _capsuleCollider.height, _capsuleCollider.radius, _capsuleCollider.direction);
+            Vector3 minimumMeters = Vector3.Min(geometry.PointA, geometry.PointB) - Vector3.one * geometry.RadiusMeters;
+            Vector3 maximumMeters = Vector3.Max(geometry.PointA, geometry.PointB) + Vector3.one * geometry.RadiusMeters;
+            return new Bounds((minimumMeters + maximumMeters) * 0.5f, maximumMeters - minimumMeters);
+        }
+
         public override int OverlapAtPoseNonAlloc(
             Vector3 worldPosition,
             Quaternion worldRotation,
