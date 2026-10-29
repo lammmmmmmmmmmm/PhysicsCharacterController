@@ -29,7 +29,10 @@ namespace PhysicsCharacterController
         public bool AdvanceAndConsumeSample(float elapsedSeconds, float intervalSeconds, Vector3 direction)
         {
             _remainingSeconds -= elapsedSeconds;
-            bool hasDirectionChanged = Vector3.Dot(_sampledDirection, direction) < MINIMUM_DIRECTION_ALIGNMENT;
+            bool isStationary = direction.sqrMagnitude <= Mathf.Epsilon;
+            bool wasStationary = _sampledDirection.sqrMagnitude <= Mathf.Epsilon;
+            bool hasDirectionChanged = isStationary != wasStationary ||
+                (!isStationary && Vector3.Dot(_sampledDirection, direction) < MINIMUM_DIRECTION_ALIGNMENT);
             if (_hasSampled && _remainingSeconds > DEADLINE_TOLERANCE_SECONDS && !hasDirectionChanged)
                 return false;
 

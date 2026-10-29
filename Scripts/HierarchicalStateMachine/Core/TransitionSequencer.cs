@@ -10,13 +10,19 @@ namespace HSM
         private Action _nextPhase;
         private (State from, State to)? _pendingTransition;
         private CancellationTokenSource _cancellationSource;
+        private readonly Action<float> _stateMachineTick;
+        private readonly Action<float> _stateMachineFixedTick;
 
         public StateMachine Machine { get; }
         public bool IsSequential { get; set; }
 
+        #region Public Methods
+
         public TransitionSequencer(StateMachine machine)
         {
             Machine = machine;
+            _stateMachineTick = machine.InternalTick;
+            _stateMachineFixedTick = machine.InternalFixedTick;
         }
 
         public void RequestTransition(State from, State to)
@@ -34,13 +40,32 @@ namespace HSM
 
         public void Tick(float deltaTime)
         {
-            TickInternal(deltaTime, Machine.InternalTick);
+            TickInternal(deltaTime, _stateMachineTick);
         }
 
         public void FixedTick(float deltaTime)
         {
-            TickInternal(deltaTime, Machine.InternalFixedTick);
+            TickInternal(deltaTime, _stateMachineFixedTick);
         }
+
+        public static State FindLowestCommonAncestor(State a, State b)
+        {
+            var ancestorsOfA = new HashSet<State>();
+            for (var current = a; current != null; current = current.Parent)
+                ancestorsOfA.Add(current);
+
+            for (var current = b; current != null; current = current.Parent)
+            {
+                if (ancestorsOfA.Contains(current))
+                    return current;
+            }
+
+            return null;
+        }
+
+        #endregion
+
+        #region Private Methods
 
         private void TickInternal(float deltaTime, Action<float> stateMachineTick)
         {
@@ -166,19 +191,7 @@ namespace HSM
             return new List<State>(stack);
         }
 
-        public static State FindLowestCommonAncestor(State a, State b)
-        {
-            var ancestorsOfA = new HashSet<State>();
-            for (var current = a; current != null; current = current.Parent)
-                ancestorsOfA.Add(current);
+        #endregion
 
-            for (var current = b; current != null; current = current.Parent)
-            {
-                if (ancestorsOfA.Contains(current))
-                    return current;
-            }
-
-            return null;
-        }
     }
 }

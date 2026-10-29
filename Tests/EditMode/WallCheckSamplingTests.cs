@@ -48,6 +48,14 @@ namespace PhysicsCharacterController.Tests
         }
 
         [Test]
+        public void StationaryDirection_DoesNotBypassSamplingInterval()
+        {
+            _sampling.AdvanceAndConsumeSample(0f, 0.1f, Vector3.zero);
+            Assert.That(_sampling.AdvanceAndConsumeSample(0.02f, 0.1f, Vector3.zero), Is.False);
+            Assert.That(_sampling.AdvanceAndConsumeSample(0.02f, 0.1f, Vector3.forward), Is.True);
+        }
+
+        [Test]
         public void Reset_RequiresFreshSampleOnReactivation()
         {
             _sampling.AdvanceAndConsumeSample(0f, 0.1f, Vector3.forward);

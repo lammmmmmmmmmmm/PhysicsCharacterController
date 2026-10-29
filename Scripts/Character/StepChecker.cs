@@ -9,7 +9,7 @@ namespace PhysicsCharacterController
     /// Detects whether the character is touching a climbable step.
     /// Uses raycasts in multiple directions to check for step geometry.
     /// </summary>
-    public class StepChecker : MonoBehaviour, IVelocityModifier
+    public class StepChecker : MonoBehaviour, IVelocityModifier, ICharacterPhysicsSensor
     {
         [Header("Configuration")]
         [SerializeField] private LayerMask _groundMask;
@@ -29,90 +29,18 @@ namespace PhysicsCharacterController
         [SerializeField] private CharacterJump _characterJump;
 
         private float _feetOffset;
+        private readonly PhysicsCheckSampling _sampling = new();
 
         public bool IsTouchingStep { get; private set; }
 
-        public void SetFeetOffset(float feetOffset)
-        {
-            _feetOffset = feetOffset;
-        }
+        #region Unity Lifecycle
 
         private void FixedUpdate()
         {
-            Check(_input.HorizontalMoveDirection);
-        }
-
-        public Vector3 GetVelocityContribution(Vector3 currentVelocity, Vector3 desiredMovement)
-        {
-            if (!IsTouchingStep || _characterJump.IsJumpInProgress)
-            {
-                return Vector3.zero;
-            }
-
-            float requiredUpwardSpeedMetersPerSecond = Mathf.Max(0f, _stepUpSpeedMetersPerSecond - currentVelocity.y);
-            return Vector3.up * requiredUpwardSpeedMetersPerSecond;
-        }
-
-        private void Check(Vector3 globalForward)
-        {
-            bool canContinueStep = IsTouchingStep && !_characterJump.IsJumpInProgress;
-            if (!_groundChecker.IsGrounded && !canContinueStep)
-            {
-                IsTouchingStep = false;
+            if (!_sampling.AdvanceAndConsumeSample(Time.fixedDeltaTime, requiresImmediateSample: IsTouchingStep))
                 return;
-            }
 
-            bool isTouchingStep = false;
-            Vector3 bottomStepPos = transform.position - new Vector3(0f, _feetOffset, 0f) + new Vector3(0f, 0.05f, 0f);
-
-            if (CheckStepInDirection(bottomStepPos, globalForward))
-            {
-                isTouchingStep = true;
-            }
-
-            if (CheckStepInDirection(bottomStepPos, Quaternion.AngleAxis(_checkAngleDegrees, transform.up) * globalForward))
-            {
-                isTouchingStep = true;
-            }
-
-            if (CheckStepInDirection(bottomStepPos, Quaternion.AngleAxis(-_checkAngleDegrees, transform.up) * globalForward))
-            {
-                isTouchingStep = true;
-            }
-
-            IsTouchingStep = isTouchingStep;
-        }
-
-        private bool CheckStepInDirection(Vector3 bottomStepPos, Vector3 direction)
-        {
-            if (!Physics.Raycast(bottomStepPos, direction, out var stepLowerHit, _stepCheckerThreshold, _groundMask,
-                    QueryTriggerInteraction.Ignore))
-            {
-                return false;
-            }
-
-            bool isVerticalSurface = RoundValue(stepLowerHit.normal.y) == 0;
-            bool hasSpaceAbove = !Physics.Raycast(
-                bottomStepPos + new Vector3(0f, _maxStepHeight, 0f),
-                direction,
-                out _,
-                _stepCheckerThreshold + 0.05f,
-                _groundMask,
-                QueryTriggerInteraction.Ignore);
-
-            return isVerticalSurface && hasSpaceAbove;
-        }
-
-        private static float RoundValue(float value)
-        {
-            float unit = Mathf.Round(value);
-
-            if (value - unit < 0.000001f && value - unit > -0.000001f)
-            {
-                return unit;
-            }
-
-            return value;
+            Check(_input.HorizontalMoveDirection);
         }
 
 #if UNITY_EDITOR
@@ -150,5 +78,94 @@ namespace PhysicsCharacterController
             Handles.Label(maxStepHeightPos + forwardNegativeAngle * (_stepCheckerThreshold + 0.05f), $"Step -{_checkAngleDegrees:0.#}");
         }
 #endif
+
+        #endregion
+
+        #region Public Methods
+
+        public void SetSimulationCheckIntervalSeconds(float intervalSeconds)
+        {
+            _sampling.SetIntervalSeconds(intervalSeconds, (GetInstanceID() & 255) / 256f);
+        }
+
+        public Vector3 GetVelocityContribution(Vector3 currentVelocity, Vector3 desiredMovement)
+        {
+            if (!IsTouchingStep || _characterJump.IsJumpInProgress)
+            {
+                return Vector3.zero;
+            }
+
+            float requiredUpwardSpeedMetersPerSecond = Mathf.Max(0f, _stepUpSpeedMetersPerSecond - currentVelocity.y);
+            return Vector3.up * requiredUpwardSpeedMetersPerSecond;
+        }
+
+        public void SetFeetOffset(float feetOffset)
+        {
+            _feetOffset = feetOffset;
+        }
+
+        #endregion
+
+        #region Private Methods
+
+        private void Check(Vector3 globalForward)
+        {
+            if (globalForward.sqrMagnitude <= Mathf.Epsilon)
+            {
+                IsTouchingStep = false;
+                return;
+            }
+
+            bool canContinueStep = IsTouchingStep && !_characterJump.IsJumpInProgress;
+            if (!_groundChecker.IsGrounded && !canContinueStep)
+            {
+                IsTouchingStep = false;
+                return;
+            }
+
+            Vector3 bottomStepPos = transform.position - new Vector3(0f, _feetOffset, 0f) + new Vector3(0f, 0.05f, 0f);
+
+            IsTouchingStep = CheckStepInDirection(bottomStepPos, globalForward) ||
+                CheckStepInDirection(bottomStepPos, Quaternion.AngleAxis(_checkAngleDegrees, transform.up) * globalForward) ||
+                CheckStepInDirection(bottomStepPos, Quaternion.AngleAxis(-_checkAngleDegrees, transform.up) * globalForward);
+        }
+
+        private bool CheckStepInDirection(Vector3 bottomStepPos, Vector3 direction)
+        {
+            if (!Physics.Raycast(bottomStepPos, direction, out var stepLowerHit, _stepCheckerThreshold, _groundMask,
+                    QueryTriggerInteraction.Ignore))
+            {
+                return false;
+            }
+
+            bool isVerticalSurface = RoundValue(stepLowerHit.normal.y) == 0;
+            if (!isVerticalSurface)
+                return false;
+
+            bool hasSpaceAbove = !Physics.Raycast(
+                bottomStepPos + new Vector3(0f, _maxStepHeight, 0f),
+                direction,
+                out _,
+                _stepCheckerThreshold + 0.05f,
+                _groundMask,
+                QueryTriggerInteraction.Ignore);
+
+            return isVerticalSurface && hasSpaceAbove;
+        }
+
+        private static float RoundValue(float value)
+        {
+            float unit = Mathf.Round(value);
+
+            if (value - unit < 0.000001f && value - unit > -0.000001f)
+            {
+                return unit;
+            }
+
+            return value;
+        }
+
+        #endregion
+
     }
 }

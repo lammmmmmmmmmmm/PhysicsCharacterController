@@ -14,7 +14,7 @@ namespace PhysicsCharacterController
     // Must evaluate before SlopeChecker and all other consumers each physics tick.
     [DefaultExecutionOrder(-20)]
     [RequireComponent(typeof(Rigidbody))]
-    public class GroundChecker : MonoBehaviour
+    public class GroundChecker : MonoBehaviour, ICharacterPhysicsSensor
     {
         private const int MAX_GROUND_HIT_COUNT = 16;
         private const float MIN_CHECK_RADIUS_METERS = 0.01f;
@@ -30,6 +30,7 @@ namespace PhysicsCharacterController
         private bool _wasGrounded;
         private bool _isGrounded;
         private RaycastHit _groundHit;
+        private readonly PhysicsCheckSampling _sampling = new();
 
         public bool IsGrounded => _isGrounded;
         public bool WasGrounded => _wasGrounded;
@@ -47,6 +48,10 @@ namespace PhysicsCharacterController
 
         private void FixedUpdate()
         {
+            _wasGrounded = _isGrounded;
+            if (!_sampling.AdvanceAndConsumeSample(Time.fixedDeltaTime, requiresImmediateSample: !_isGrounded))
+                return;
+
             Check();
         }
 
@@ -76,12 +81,19 @@ namespace PhysicsCharacterController
 
         #endregion
 
+        #region Public Methods
+
+        public void SetSimulationCheckIntervalSeconds(float intervalSeconds)
+        {
+            _sampling.SetIntervalSeconds(intervalSeconds, (GetInstanceID() & 255) / 256f);
+        }
+
+        #endregion
+
         #region Private Methods
 
         private void Check()
         {
-            _wasGrounded = _isGrounded;
-
             Vector3 castOrigin = GetCastOrigin(_characterColliderShape);
             float castDistanceMeters = GetSphereCastDistanceMeters(_characterColliderShape);
             int hitCount = Physics.SphereCastNonAlloc(

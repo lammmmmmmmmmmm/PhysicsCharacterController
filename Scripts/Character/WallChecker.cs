@@ -10,7 +10,7 @@ namespace PhysicsCharacterController
     /// collision contacts: rays cancel slightly before touching, while contacts are authoritative
     /// whenever the capsule actually presses a surface, at any angle, grounded or airborne.
     /// </summary>
-    public class WallChecker : MonoBehaviour, IVelocityModifier
+    public class WallChecker : MonoBehaviour, IVelocityModifier, ICharacterPhysicsSensor
     {
         // Contacts pointing meaningfully downward are ceilings, not walls.
         private const float MIN_WALL_CONTACT_NORMAL_Y = -0.1f;
@@ -47,6 +47,7 @@ namespace PhysicsCharacterController
         private float _secondsSinceSteepContact = float.PositiveInfinity;
         private bool _hasProactiveWall;
         private Vector3 _proactiveWallNormal;
+        private float _simulationCheckIntervalSeconds;
 
         #region Unity Lifecycle
 
@@ -63,7 +64,8 @@ namespace PhysicsCharacterController
         private void FixedUpdate()
         {
             Vector3 forwardDirection = _input.HorizontalMoveDirection;
-            if (_sampling.AdvanceAndConsumeSample(Time.fixedDeltaTime, _checkIntervalSeconds, forwardDirection))
+            float intervalSeconds = Mathf.Max(_checkIntervalSeconds, _simulationCheckIntervalSeconds);
+            if (_sampling.AdvanceAndConsumeSample(Time.fixedDeltaTime, intervalSeconds, forwardDirection))
                 CheckWall(forwardDirection);
 
             IsTouchingWall = _hasProactiveWall;
@@ -119,6 +121,11 @@ namespace PhysicsCharacterController
 
         #region Public Methods
 
+        public void SetSimulationCheckIntervalSeconds(float intervalSeconds)
+        {
+            _simulationCheckIntervalSeconds = Mathf.Max(0f, intervalSeconds);
+        }
+
         public Vector3 GetVelocityContribution(Vector3 currentVelocity, Vector3 desiredMovement)
         {
             if (!IsTouchingWall)
@@ -137,6 +144,9 @@ namespace PhysicsCharacterController
         {
             _hasProactiveWall = false;
             _proactiveWallNormal = Vector3.zero;
+            if (forwardDirection.sqrMagnitude <= Mathf.Epsilon)
+                return;
+
             Vector3 positionMeters = transform.position;
             WallCheckSampling.FillDirections(forwardDirection, transform.up, _checkDirections);
 

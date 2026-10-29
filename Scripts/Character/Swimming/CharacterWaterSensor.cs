@@ -6,7 +6,7 @@ namespace PhysicsCharacterController
 {
     [DisallowMultipleComponent]
     [RequireComponent(typeof(CharacterColliderShape))]
-    public sealed class CharacterWaterSensor : MonoBehaviour
+    public sealed class CharacterWaterSensor : MonoBehaviour, ICharacterPhysicsSensor
     {
         private const int MAX_WATER_OVERLAP_COUNT = 16;
 
@@ -20,6 +20,7 @@ namespace PhysicsCharacterController
         private readonly Collider[] _waterOverlapResults = new Collider[MAX_WATER_OVERLAP_COUNT];
         private readonly SwimmingStateResolver _stateResolver = new();
         private IReadOnlyList<ICharacterWaterQuery> _additionalWaterQueries = Array.Empty<ICharacterWaterQuery>();
+        private readonly PhysicsCheckSampling _sampling = new();
 
         public bool HasWaterVolume { get; private set; }
         public bool IsSufficientlyImmersed { get; private set; }
@@ -31,11 +32,15 @@ namespace PhysicsCharacterController
 
         private void FixedUpdate()
         {
+            if (!_sampling.AdvanceAndConsumeSample(Time.fixedDeltaTime, requiresImmediateSample: HasWaterVolume))
+                return;
+
             RefreshWaterState();
         }
 
         private void OnDisable()
         {
+            _sampling.Reset();
             HasWaterVolume = false;
             WaterSurfaceHeightMeters = 0f;
             IsSufficientlyImmersed = false;
@@ -45,6 +50,11 @@ namespace PhysicsCharacterController
         #endregion
 
         #region Public Methods
+
+        public void SetSimulationCheckIntervalSeconds(float intervalSeconds)
+        {
+            _sampling.SetIntervalSeconds(intervalSeconds, (GetInstanceID() & 255) / 256f);
+        }
 
         public void SetAdditionalWaterQueries(IReadOnlyList<ICharacterWaterQuery> waterQueries)
         {
