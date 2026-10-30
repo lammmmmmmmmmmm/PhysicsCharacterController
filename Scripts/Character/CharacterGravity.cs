@@ -75,7 +75,8 @@ namespace PhysicsCharacterController
 
         private bool HasGroundNormalChanged()
         {
-            return !Mathf.Approximately(_slopeChecker.GroundNormal.y, 1)
+            return !_stepChecker.IsTouchingStep
+                   && !Mathf.Approximately(_slopeChecker.GroundNormal.y, 1)
                    && _slopeChecker.GroundNormal.y != 0
                    && _slopeChecker.IsTouchingSlope
                    && _slopeChecker.PreviousGroundNormal != _slopeChecker.GroundNormal;

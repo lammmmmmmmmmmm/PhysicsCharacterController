@@ -7,7 +7,7 @@ namespace PhysicsCharacterController
     /// pushing into them, so the character slides along instead of ramming the physics solver —
     /// ramming reads as shaking, and on inclined faces the solver converts the push into an
     /// unintended climb. Detection combines proactive raycasts with the physics engine's own
-    /// collision contacts: rays cancel slightly before touching, while contacts are authoritative
+    /// collision contacts: rays cancel when the requested movement reaches the body-to-wall gap, while contacts are authoritative
     /// whenever the capsule actually presses a surface, at any angle, grounded or airborne.
     /// </summary>
     public class WallChecker : MonoBehaviour, IVelocityModifier, ICharacterPhysicsSensor
@@ -44,18 +44,30 @@ namespace PhysicsCharacterController
 
         private bool _hasSteepContact;
         private Vector3 _steepContactNormal;
+        private Vector3 _steepContactPointMeters;
+        private CharacterColliderShape _colliderShape;
+        private Rigidbody _rigidbody;
         private float _secondsSinceSteepContact = float.PositiveInfinity;
         private bool _hasProactiveWall;
         private Vector3 _proactiveWallNormal;
+        private Vector3 _proactiveWallPointMeters;
+        private bool _isSteepContactRemembered;
         private float _simulationCheckIntervalSeconds;
 
         #region Unity Lifecycle
+
+        private void Awake()
+        {
+            _colliderShape = GetComponent<CharacterColliderShape>();
+            _rigidbody = GetComponent<Rigidbody>();
+        }
 
         private void OnEnable()
         {
             _sampling.Reset();
             _hasProactiveWall = false;
             _hasSteepContact = false;
+            _isSteepContactRemembered = false;
             _secondsSinceSteepContact = float.PositiveInfinity;
             IsTouchingWall = false;
             WallNormal = Vector3.zero;
@@ -80,8 +92,17 @@ namespace PhysicsCharacterController
                 _secondsSinceSteepContact += Time.fixedDeltaTime;
             }
 
-            bool isSteepContactRemembered = _secondsSinceSteepContact <= WALL_CONTACT_MEMORY_SECONDS;
-            if (!IsTouchingWall && isSteepContactRemembered)
+            // Interpolation and solver contact slop must not preserve the riser after the feet clear it.
+            float physicsFeetYMeters = _colliderShape.CalculateWorldBounds().min.y +
+                _rigidbody.position.y - _rigidbody.transform.position.y;
+            float minimumWallContactYMeters = physicsFeetYMeters + _colliderShape.PhysicsCollider.contactOffset;
+            if (_steepContactPointMeters.y <= minimumWallContactYMeters)
+            {
+                _secondsSinceSteepContact = float.PositiveInfinity;
+            }
+
+            _isSteepContactRemembered = _secondsSinceSteepContact <= WALL_CONTACT_MEMORY_SECONDS;
+            if (_isSteepContactRemembered)
             {
                 IsTouchingWall = true;
                 WallNormal = _steepContactNormal;
@@ -128,7 +149,7 @@ namespace PhysicsCharacterController
 
         public Vector3 GetVelocityContribution(Vector3 currentVelocity, Vector3 desiredMovement)
         {
-            if (!IsTouchingWall)
+            if (!IsTouchingWall || (!_isSteepContactRemembered && !WillReachProactiveWall(desiredMovement)))
             {
                 return Vector3.zero;
             }
@@ -139,6 +160,16 @@ namespace PhysicsCharacterController
         #endregion
 
         #region Private Methods
+
+        private bool WillReachProactiveWall(Vector3 desiredVelocityMetersPerSecond)
+        {
+            // Detection range must not create a dead zone outside the per-tick step sweep.
+            Vector3 nearestBodyPointMeters = _colliderShape.PhysicsCollider.ClosestPoint(_proactiveWallPointMeters);
+            float gapMeters = Vector3.Dot(nearestBodyPointMeters - _proactiveWallPointMeters, _proactiveWallNormal);
+            float requestedTravelIntoWallMeters = -Vector3.Dot(
+                desiredVelocityMetersPerSecond * Time.fixedDeltaTime, _proactiveWallNormal);
+            return gapMeters <= Mathf.Max(0f, requestedTravelIntoWallMeters);
+        }
 
         private void CheckWall(Vector3 forwardDirection)
         {
@@ -160,6 +191,7 @@ namespace PhysicsCharacterController
                         && IsTooSteepToWalk(hit.normal))
                     {
                         _proactiveWallNormal = hit.normal;
+                        _proactiveWallPointMeters = hit.point;
                         _hasProactiveWall = true;
                         return;
                     }
@@ -186,6 +218,7 @@ namespace PhysicsCharacterController
 
                 _hasSteepContact = true;
                 _steepContactNormal = contactNormal;
+                _steepContactPointMeters = collision.GetContact(contactIndex).point;
                 return;
             }
         }

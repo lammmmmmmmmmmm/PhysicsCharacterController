@@ -4,7 +4,7 @@ using UnityEngine.Events;
 namespace PhysicsCharacterController
 {
     /// <summary>
-    /// Coordinates shared character state, landing events, collider friction, and step measurements.
+    /// Coordinates shared character state, landing events, and collider friction.
     /// Collider geometry comes from a CharacterColliderShape component, allowing the controller to
     /// use different physical shapes without leaking shape-specific logic into character behavior.
     /// </summary>
@@ -23,7 +23,6 @@ namespace PhysicsCharacterController
 
         [Header("Checkers")]
         [SerializeField] private GroundChecker _groundChecker;
-        [SerializeField] private StepChecker _stepChecker;
 
         [Header("Events")]
         [SerializeField] private float _minimumVerticalSpeedToLightLandEvent;
@@ -44,7 +43,6 @@ namespace PhysicsCharacterController
         private void Start()
         {
             SetNoFriction();
-            _stepChecker.SetFeetOffset(_characterColliderShape.FeetOffsetMeters);
         }
 
         private void Update()

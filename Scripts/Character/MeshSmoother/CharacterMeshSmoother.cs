@@ -12,6 +12,8 @@ namespace PhysicsCharacterController
     /// </summary>
     public class CharacterMeshSmoother : MonoBehaviour
     {
+        private const float STEP_SETTLE_TOLERANCE_METERS = 0.005f;
+
         [Header("References")]
         [SerializeField] private GroundChecker _groundChecker;
 
@@ -32,12 +34,15 @@ namespace PhysicsCharacterController
         private Vector3 _authoredLocalPosition;
         private Vector3 _smoothedWorldPosition;
         private Vector3 _smoothVelocity;
+        private StepChecker _stepChecker;
+        private bool _isSmoothingStep;
 
         #region Unity Lifecycle
 
         private void Awake()
         {
             _authoredLocalPosition = transform.localPosition;
+            _stepChecker = _groundChecker.GetComponent<StepChecker>();
         }
 
         private void OnEnable()
@@ -46,6 +51,7 @@ namespace PhysicsCharacterController
             _smoothVelocity = Vector3.zero;
             _verticalSmoothing.Reset();
             _surfaceRoughnessTracker.Reset();
+            _isSmoothingStep = false;
         }
 
         private void LateUpdate()
@@ -68,6 +74,13 @@ namespace PhysicsCharacterController
             Vector3 targetWorldPosition = GetTargetWorldPosition();
 
             float verticalOffsetMeters = _smoothedWorldPosition.y - targetWorldPosition.y;
+            _isSmoothingStep = _stepChecker.IsTouchingStep ||
+                (_isSmoothingStep && isGrounded && Mathf.Abs(verticalOffsetMeters) > STEP_SETTLE_TOLERANCE_METERS);
+            if (_isSmoothingStep)
+            {
+                roughness01 = 1f;
+            }
+
             float verticalSmoothTimeSeconds = _verticalSmoothing.UpdateSmoothTimeSeconds(
                 isGrounded,
                 Time.deltaTime,
@@ -75,10 +88,13 @@ namespace PhysicsCharacterController
                 roughness01);
 
             float smoothedY = Mathf.SmoothDamp(_smoothedWorldPosition.y, targetWorldPosition.y, ref _smoothVelocity.y, verticalSmoothTimeSeconds);
+            float maxVerticalOffsetMeters = _isSmoothingStep
+                ? Mathf.Max(_maxVerticalOffsetMeters, _stepChecker.MaxStepHeightMeters)
+                : _maxVerticalOffsetMeters;
             smoothedY = Mathf.Clamp(
                 smoothedY,
-                targetWorldPosition.y - _maxVerticalOffsetMeters,
-                targetWorldPosition.y + _maxVerticalOffsetMeters);
+                targetWorldPosition.y - maxVerticalOffsetMeters,
+                targetWorldPosition.y + maxVerticalOffsetMeters);
 
             float smoothedX = Mathf.SmoothDamp(_smoothedWorldPosition.x, targetWorldPosition.x, ref _smoothVelocity.x, _horizontalSmoothTimeSeconds);
             float smoothedZ = Mathf.SmoothDamp(_smoothedWorldPosition.z, targetWorldPosition.z, ref _smoothVelocity.z, _horizontalSmoothTimeSeconds);

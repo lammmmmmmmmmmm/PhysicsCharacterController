@@ -62,7 +62,8 @@ namespace PhysicsCharacterController
             float distanceMeters,
             RaycastHit[] castResults,
             LayerMask collisionMask,
-            QueryTriggerInteraction queryTriggerInteraction)
+            QueryTriggerInteraction queryTriggerInteraction,
+            float insetMeters = 0f)
         {
             BoxColliderGeometry geometry = _geometryCalculator.Calculate(
                 worldPosition,
@@ -72,7 +73,7 @@ namespace PhysicsCharacterController
                 _boxCollider.size);
             return Physics.BoxCastNonAlloc(
                 geometry.Center,
-                geometry.HalfExtentsMeters,
+                Vector3.Max(geometry.HalfExtentsMeters - Vector3.one * insetMeters, Vector3.one * 0.0001f),
                 worldDirection,
                 castResults,
                 geometry.Rotation,

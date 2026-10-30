@@ -187,7 +187,6 @@ MonoBehaviour:
   _characterMove: {fileID: 8797199533008883986}
   _characterCrouch: {fileID: 2818233025018037824}
   _groundChecker: {fileID: 5381384936787526104}
-  _stepChecker: {fileID: 3026518424203180078}
   _minimumVerticalSpeedToLightLandEvent: 5
   _onLightLand:
     m_PersistentCalls:
@@ -224,10 +223,8 @@ MonoBehaviour:
   _groundMask:
     serializedVersion: 2
     m_Bits: 9
-  _stepCheckerThreshold: 0.6
-  _maxStepHeight: 0.7
-  _stepUpSpeedMetersPerSecond: 1.5
-  _input: {fileID: 1978479410493231783}
+  _maxStepHeightMeters: 0.6
+  _skinWidthMeters: 0.01
   _groundChecker: {fileID: 5381384936787526104}
   _characterJump: {fileID: 7636482674149424828}
 --- !u!114 &177501398167541763
@@ -251,6 +248,7 @@ MonoBehaviour:
     m_Bits: 1
   _input: {fileID: 1978479410493231783}
   _slopeChecker: {fileID: 6922605456415282072}
+  _checkIntervalSeconds: 0
   _debug: 0
   _debugForwardDirection: {x: 0, y: 0, z: 1}
 --- !u!114 &6922605456415282072

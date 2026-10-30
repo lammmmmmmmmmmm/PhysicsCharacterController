@@ -1,0 +1,279 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &9021018067262906784
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7134464699900247003}
+  - component: {fileID: 4691569366933860313}
+  - component: {fileID: 389763756297390983}
+  - component: {fileID: 6846288253699360378}
+  - component: {fileID: 9207206696187534457}
+  - component: {fileID: 1992531814332542456}
+  - component: {fileID: 2302682918646397625}
+  - component: {fileID: 4099492769965187965}
+  - component: {fileID: 8137129467292387957}
+  - component: {fileID: 5132415659414869512}
+  - component: {fileID: 7838911755916429179}
+  - component: {fileID: 4225404269901190273}
+  m_Layer: 0
+  m_Name: Step Movement Capsule
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &7134464699900247003
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9021018067262906784}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!54 &4691569366933860313
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9021018067262906784}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 0
+  m_Interpolate: 1
+  m_Constraints: 112
+  m_CollisionDetection: 2
+--- !u!136 &389763756297390983
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9021018067262906784}
+  m_Material: {fileID: 13400000, guid: bb44c0c7e96f8bc4a81683e143163134, type: 2}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.3
+  m_Height: 1.8
+  m_Direction: 1
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &6846288253699360378
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9021018067262906784}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6974f6a56caf2444f9dfda8d65b42b9b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PhysicsCharacterController.Runtime::PhysicsCharacterController.CharacterCapsuleColliderShape
+--- !u!114 &9207206696187534457
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9021018067262906784}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c395e5dbe8ce37349a8e5551dd3e3bea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PhysicsCharacterController.PlayModeTests::PhysicsCharacterController.Tests.PlayMode.StepMovementTestDriver
+  _characterMove: {fileID: 1992531814332542456}
+  _characterGravity: {fileID: 4225404269901190273}
+  _characterJump: {fileID: 8137129467292387957}
+--- !u!114 &1992531814332542456
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9021018067262906784}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe98413702bfec84b86c7c31fbeb2dd6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PhysicsCharacterController.Runtime::PhysicsCharacterController.CharacterMove
+  _movementSpeed: 2
+  _sprintSpeed: 20
+  _movementThreshold: 0.01
+  _acceleration: 30
+  _deceleration: 10
+  _input: {fileID: 9207206696187534457}
+  _rigidbody: {fileID: 4691569366933860313}
+--- !u!114 &2302682918646397625
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9021018067262906784}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a5bd6679774f1bf47ae993edfcc68751, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PhysicsCharacterController.Runtime::PhysicsCharacterController.GroundChecker
+  _groundMask:
+    serializedVersion: 2
+    m_Bits: 1
+  _checkRadiusMeters: 0.2
+  _groundToleranceMeters: 0.1
+--- !u!114 &4099492769965187965
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9021018067262906784}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 905b1db48e682f149b7b036b38f8630b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PhysicsCharacterController.Runtime::PhysicsCharacterController.SlopeChecker
+  _maxClimbableSlopeAngle: 53.6
+  _slopeSpeedCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: -0.0077777775
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 90
+      value: 0.3
+      inSlope: -0.0077777775
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  _preventSlideOnSlope: 0
+  _groundChecker: {fileID: 2302682918646397625}
+  _characterMove: {fileID: 1992531814332542456}
+  _input: {fileID: 9207206696187534457}
+  _debug: 1
+--- !u!114 &8137129467292387957
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9021018067262906784}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29afffd4eb474cf419f365d60feda7db, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PhysicsCharacterController.Runtime::PhysicsCharacterController.CharacterJump
+  _maxJumpForce: 12
+  _jumpBufferTime: 0.2
+  _coyoteTime: 0.2
+  _groundChecker: {fileID: 2302682918646397625}
+  _slopeChecker: {fileID: 4099492769965187965}
+  _input: {fileID: 9207206696187534457}
+--- !u!114 &5132415659414869512
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9021018067262906784}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0e21d72a17fafaf41b5cb81774c731ca, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PhysicsCharacterController.Runtime::PhysicsCharacterController.StepChecker
+  _groundMask:
+    serializedVersion: 2
+    m_Bits: 1
+  _maxStepHeightMeters: 0.6
+  _skinWidthMeters: 0.01
+  _groundChecker: {fileID: 2302682918646397625}
+  _characterJump: {fileID: 8137129467292387957}
+--- !u!114 &7838911755916429179
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9021018067262906784}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d05ca998545fdc542a56894fc049e53b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PhysicsCharacterController.Runtime::PhysicsCharacterController.WallChecker
+  _checkDistance: 0.8
+  _checkHeightOffsetsMeters:
+  - 0
+  - 0.5
+  _wallMask:
+    serializedVersion: 2
+    m_Bits: 1
+  _input: {fileID: 9207206696187534457}
+  _slopeChecker: {fileID: 4099492769965187965}
+  _checkIntervalSeconds: 0
+  _debug: 0
+  _debugForwardDirection: {x: 0, y: 0, z: 1}
+--- !u!114 &4225404269901190273
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9021018067262906784}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 476ef1b4f844c4340bfa6943c6279572, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PhysicsCharacterController.Runtime::PhysicsCharacterController.CharacterGravity
+  _gravityMultiplier: 6
+  _gravityMultiplierOnSlideChange: 3
+  _gravityMultiplierIfUnclimbableSlope: 30
+  _maxDownwardSpeed: 200
+  _slopeChecker: {fileID: 4099492769965187965}
+  _stepChecker: {fileID: 5132415659414869512}
+  _rigidbody: {fileID: 4691569366933860313}

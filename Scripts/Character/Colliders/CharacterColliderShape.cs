@@ -96,7 +96,8 @@ namespace PhysicsCharacterController
             float distanceMeters,
             RaycastHit[] castResults,
             LayerMask collisionMask,
-            QueryTriggerInteraction queryTriggerInteraction);
+            QueryTriggerInteraction queryTriggerInteraction,
+            float insetMeters = 0f);
 
         #endregion
 

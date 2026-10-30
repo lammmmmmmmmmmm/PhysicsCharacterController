@@ -59,7 +59,8 @@ namespace PhysicsCharacterController
             float distanceMeters,
             RaycastHit[] castResults,
             LayerMask collisionMask,
-            QueryTriggerInteraction queryTriggerInteraction)
+            QueryTriggerInteraction queryTriggerInteraction,
+            float insetMeters = 0f)
         {
             CapsuleColliderGeometry geometry = _geometryCalculator.Calculate(
                 worldPosition,
@@ -72,7 +73,7 @@ namespace PhysicsCharacterController
             return Physics.CapsuleCastNonAlloc(
                 geometry.PointA,
                 geometry.PointB,
-                geometry.RadiusMeters,
+                Mathf.Max(0.0001f, geometry.RadiusMeters - insetMeters),
                 worldDirection,
                 castResults,
                 distanceMeters,

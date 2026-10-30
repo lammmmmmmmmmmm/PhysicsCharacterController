@@ -22,6 +22,7 @@ namespace PhysicsCharacterController
 
         private IMovementModifier[] _speedModifiers;
         private IVelocityModifier[] _velocityModifiers;
+        private IMovementStepResolver[] _stepResolvers;
 
         private float _currentSpeed;
         private Vector2 _currentInput => _input.GetMoveInput();
@@ -38,6 +39,7 @@ namespace PhysicsCharacterController
         {
             _speedModifiers = GetComponents<IMovementModifier>();
             _velocityModifiers = GetComponents<IVelocityModifier>();
+            _stepResolvers = GetComponents<IMovementStepResolver>();
         }
 
         private void OnEnable()
@@ -82,6 +84,16 @@ namespace PhysicsCharacterController
         private void ApplyMovementVelocity()
         {
             Vector3 baseMovementVelocity = CalculateBaseVelocity();
+            Vector3 stepVelocityMetersPerSecond = baseMovementVelocity;
+            stepVelocityMetersPerSecond.y = _rigidbody.linearVelocity.y;
+            foreach (IMovementStepResolver stepResolver in _stepResolvers)
+            {
+                if (stepResolver.TryApplyStep(stepVelocityMetersPerSecond, Time.fixedDeltaTime))
+                {
+                    return;
+                }
+            }
+
             Vector3 additiveVelocity = CalculateAdditiveVelocity(baseMovementVelocity);
 
             // Combine: Base Input + Gravity (preserved from RB) + Additive Modifiers
