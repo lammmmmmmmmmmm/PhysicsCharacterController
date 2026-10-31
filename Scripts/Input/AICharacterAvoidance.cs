@@ -33,7 +33,7 @@ namespace PhysicsCharacterController
                 return;
             }
 
-            _desiredSpeedMetersPerSecond = _characterMove.WalkSpeed;
+            _desiredSpeedMetersPerSecond = _characterMove.WalkSpeedMetersPerSecond;
             _rvoController.SetTarget(
                 waypointMeters,
                 _desiredSpeedMetersPerSecond,

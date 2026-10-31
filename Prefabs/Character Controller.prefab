@@ -345,11 +345,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe98413702bfec84b86c7c31fbeb2dd6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _movementSpeed: 5
-  _sprintSpeed: 10
+  _walkSpeedMetersPerSecond: 5
+  _sprintSpeedMetersPerSecond: 10
   _movementThreshold: 0.01
   _acceleration: 20
   _deceleration: 20
+  _idleAnimationBlendSeconds: 0.15
   _input: {fileID: 1978479410493231783}
   _rigidbody: {fileID: 7698808979737546365}
 --- !u!114 &2818233025018037824

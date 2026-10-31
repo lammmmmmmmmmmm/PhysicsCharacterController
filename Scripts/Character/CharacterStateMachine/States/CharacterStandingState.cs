@@ -25,14 +25,17 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
         protected override void OnEnter()
         {
             _context.CharacterCrouch.ApplyStandState();
-            _context.Animator.SetBase(_context.StandingAnimationData, _context.StandingStateId, _context.CharacterMove.CurrentSpeed);
+            _context.Animator.SetBase(
+                _context.StandingAnimationData,
+                _context.StandingStateId,
+                _context.CharacterMove.LocomotionAnimationSpeedMetersPerSecond);
         }
 
         protected override void OnFixedUpdate(float fixedDeltaTime)
         {
-            float currentSpeed = _context.CharacterMove.CurrentSpeed;
-            _context.Animator.UpdateLocomotionAnimationParameter(currentSpeed);
-            _context.Animator.UpdateTransitionMixerParameter(currentSpeed);
+            float currentSpeedMetersPerSecond = _context.CharacterMove.LocomotionAnimationSpeedMetersPerSecond;
+            _context.Animator.UpdateLocomotionAnimationParameter(currentSpeedMetersPerSecond);
+            _context.Animator.UpdateTransitionMixerParameter(currentSpeedMetersPerSecond);
         }
     }
 }

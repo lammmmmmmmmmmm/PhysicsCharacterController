@@ -8,13 +8,17 @@ namespace PhysicsCharacterController
     public class CharacterMove : MonoBehaviour
     {
         [Header("Movement Settings")]
-        [SerializeField] private float _movementSpeed = 14f;
-        [SerializeField] private float _sprintSpeed = 20f;
+        [SerializeField] private float _walkSpeedMetersPerSecond = 14f;
+        [SerializeField] private float _sprintSpeedMetersPerSecond = 20f;
         [Range(0.01f, 0.99f)]
         [Tooltip("Minimum input value to trigger movement")]
         [SerializeField] private float _movementThreshold = 0.01f;
         [SerializeField] private float _acceleration = 10f;
         [SerializeField] private float _deceleration = 10f;
+
+        [Header("Locomotion Feedback")]
+        [Tooltip("Duration of the grounded animation's run-to-idle blend, beginning when measured movement slows down.")]
+        [SerializeField, Min(0.01f)] private float _idleAnimationBlendSeconds = 0.15f;
 
         [Header("References")]
         [SerializeField] private BaseCharacterInput _input;
@@ -24,16 +28,22 @@ namespace PhysicsCharacterController
         private IVelocityModifier[] _velocityModifiers;
         private IMovementStepResolver[] _stepResolvers;
 
-        private float _currentSpeed;
+        private readonly PlanarLocomotionSpeedSampler _locomotionSpeedSampler = new();
+        private readonly LocomotionAnimationSpeedBlend _locomotionAnimationSpeedBlend = new();
+        private float _commandedSpeedMetersPerSecond;
         private Vector2 _currentInput => _input.GetMoveInput();
         private bool _isSprinting;
 
-        public float WalkSpeed => _movementSpeed;
-        public float SprintSpeed => _sprintSpeed;
-        public float CurrentSpeed => _currentSpeed;
+        public float WalkSpeedMetersPerSecond => _walkSpeedMetersPerSecond;
+        public float SprintSpeedMetersPerSecond => _sprintSpeedMetersPerSecond;
+        public float CommandedSpeedMetersPerSecond => _commandedSpeedMetersPerSecond;
+        public float MeasuredPlanarSpeedMetersPerSecond => _locomotionSpeedSampler.SpeedMetersPerSecond;
+        public float LocomotionAnimationSpeedMetersPerSecond => _locomotionAnimationSpeedBlend.SpeedMetersPerSecond;
         public float MovementThreshold => _movementThreshold;
         public bool IsSprinting => _isSprinting;
         public bool HasMovementInput => _currentInput.sqrMagnitude > _movementThreshold * _movementThreshold;
+
+        #region Unity Lifecycle
 
         private void Awake()
         {
@@ -44,15 +54,46 @@ namespace PhysicsCharacterController
 
         private void OnEnable()
         {
+            ResetLocomotionMeasurement();
             _input.OnSprint += OnSprintInput;
         }
 
         private void OnDisable()
         {
+            ResetLocomotionMeasurement();
             _input.OnSprint -= OnSprintInput;
         }
 
-        private void OnSprintInput(bool isSprinting) => _isSprinting = isSprinting;
+        private void OnDrawGizmosSelected()
+        {
+            Gizmos.color = Color.cyan;
+            var offset = new Vector3(0f, 0.1f, 0f);
+            Gizmos.DrawLine(transform.position + offset, transform.position + offset + _input.HorizontalMoveDirection * 2f);
+#if UNITY_EDITOR
+            Handles.Label(transform.position + offset + _input.HorizontalMoveDirection * 2f, "Input Direction");
+#endif
+        }
+
+        #endregion
+
+        #region Public Methods
+
+        public void ResetLocomotionMeasurement()
+        {
+            _locomotionSpeedSampler.Reset(_rigidbody.position);
+            _locomotionAnimationSpeedBlend.Reset();
+        }
+
+        public void SampleLocomotionSpeed(float deltaSeconds)
+        {
+            if (!_locomotionSpeedSampler.Sample(_rigidbody.position, deltaSeconds, Mathf.Max(_walkSpeedMetersPerSecond, _sprintSpeedMetersPerSecond)))
+            {
+                _locomotionAnimationSpeedBlend.Reset();
+                return;
+            }
+
+            _locomotionAnimationSpeedBlend.UpdateSpeed(MeasuredPlanarSpeedMetersPerSecond, deltaSeconds, _idleAnimationBlendSeconds);
+        }
 
         public void MoveWithInput()
         {
@@ -60,14 +101,26 @@ namespace PhysicsCharacterController
             float combinedMultiplier = GetCombinedSpeedMultiplier();
             targetSpeed *= combinedMultiplier;
 
-            _currentSpeed = Mathf.MoveTowards(_currentSpeed, targetSpeed, _acceleration * Time.fixedDeltaTime);
+            _commandedSpeedMetersPerSecond = Mathf.MoveTowards(_commandedSpeedMetersPerSecond, targetSpeed, _acceleration * Time.fixedDeltaTime);
 
             ApplyMovementVelocity();
         }
 
+        public void Decelerate()
+        {
+            _commandedSpeedMetersPerSecond = Mathf.MoveTowards(_commandedSpeedMetersPerSecond, 0f, _deceleration * Time.fixedDeltaTime);
+            ApplyDecelerationVelocity();
+        }
+
+        #endregion
+
+        #region Private Methods
+
+        private void OnSprintInput(bool isSprinting) => _isSprinting = isSprinting;
+
         private float CalculateTargetSpeed()
         {
-            return _isSprinting ? _sprintSpeed : _movementSpeed;
+            return _isSprinting ? _sprintSpeedMetersPerSecond : _walkSpeedMetersPerSecond;
         }
 
         private float GetCombinedSpeedMultiplier()
@@ -108,7 +161,7 @@ namespace PhysicsCharacterController
 
         private Vector3 CalculateBaseVelocity()
         {
-            return _input.HorizontalMoveDirection * _currentSpeed;
+            return _input.HorizontalMoveDirection * _commandedSpeedMetersPerSecond;
         }
 
         private Vector3 CalculateAdditiveVelocity(Vector3 baseVelocity)
@@ -123,12 +176,6 @@ namespace PhysicsCharacterController
             return totalAdditive;
         }
 
-        public void Decelerate()
-        {
-            _currentSpeed = Mathf.MoveTowards(_currentSpeed, 0f, _deceleration * Time.fixedDeltaTime);
-            ApplyDecelerationVelocity();
-        }
-
         private void ApplyDecelerationVelocity()
         {
             Vector3 baseMovementVelocity = CalculateBaseVelocity();
@@ -139,14 +186,6 @@ namespace PhysicsCharacterController
             _rigidbody.linearVelocity = finalVelocity;
         }
 
-        private void OnDrawGizmosSelected()
-        {
-            Gizmos.color = Color.cyan;
-            var offset = new Vector3(0f, 0.1f, 0f);
-            Gizmos.DrawLine(transform.position + offset, transform.position + offset + _input.HorizontalMoveDirection * 2f);
-#if UNITY_EDITOR
-            Handles.Label(transform.position + offset + _input.HorizontalMoveDirection * 2f, "Input Direction");
-#endif
-        }
+        #endregion
     }
 }

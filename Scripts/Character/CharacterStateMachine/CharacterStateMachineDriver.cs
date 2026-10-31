@@ -104,6 +104,7 @@ namespace PhysicsCharacterController.CharacterStateMachine
 
         private void FixedUpdate()
         {
+            _characterMove.SampleLocomotionSpeed(Time.fixedDeltaTime);
             _machine.FixedTick(Time.fixedDeltaTime);
             LogStatePathIfChanged();
         }

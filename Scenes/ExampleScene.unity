@@ -4622,11 +4622,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe98413702bfec84b86c7c31fbeb2dd6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _movementSpeed: 10
-  _sprintSpeed: 20
+  _walkSpeedMetersPerSecond: 10
+  _sprintSpeedMetersPerSecond: 20
   _movementThreshold: 0.01
   _acceleration: 50
   _deceleration: 70
+  _idleAnimationBlendSeconds: 0.15
   _input: {fileID: 1042393910}
   _rigidbody: {fileID: 1042393906}
 --- !u!114 &1042393899

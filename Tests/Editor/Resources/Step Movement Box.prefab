@@ -129,11 +129,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe98413702bfec84b86c7c31fbeb2dd6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: PhysicsCharacterController.Runtime::PhysicsCharacterController.CharacterMove
-  _movementSpeed: 2
-  _sprintSpeed: 20
+  _walkSpeedMetersPerSecond: 2
+  _sprintSpeedMetersPerSecond: 20
   _movementThreshold: 0.01
   _acceleration: 30
   _deceleration: 10
+  _idleAnimationBlendSeconds: 0.15
   _input: {fileID: 1645945225252921170}
   _rigidbody: {fileID: 9068068593129400616}
 --- !u!114 &2520875112679219277

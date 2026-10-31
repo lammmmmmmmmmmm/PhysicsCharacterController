@@ -92,7 +92,12 @@ namespace PhysicsCharacterController
 
             LogClearanceWarningOnce(hasExceededMaximumCorrection);
 
-            Vector3 bobOffsetMeters = _headBobOscillator.UpdateOffsetMeters(planarVelocity.magnitude, _characterMove.SprintSpeed, _groundChecker.IsGrounded, _characterMove.HasMovementInput, Time.deltaTime);
+            Vector3 bobOffsetMeters = _headBobOscillator.UpdateOffsetMeters(
+                planarVelocity.magnitude,
+                _characterMove.SprintSpeedMetersPerSecond,
+                _groundChecker.IsGrounded,
+                _characterMove.HasMovementInput,
+                Time.deltaTime);
             Vector3 worldOffset = characterForward * clearanceCorrectionMeters + characterRight * bobOffsetMeters.x + Vector3.up * bobOffsetMeters.y;
 
             transform.localPosition = transform.parent.InverseTransformVector(worldOffset);

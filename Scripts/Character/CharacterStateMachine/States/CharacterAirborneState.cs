@@ -46,7 +46,7 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
                 _minimumAirborneTimer -= fixedDeltaTime;
             }
 
-            _context.Animator.UpdateTransitionMixerParameter(_context.CharacterMove.CurrentSpeed);
+            _context.Animator.UpdateTransitionMixerParameter(_context.CharacterMove.CommandedSpeedMetersPerSecond);
 
             bool isRising = _context.CharacterGravity.VerticalVelocity >= 0f;
 
@@ -60,7 +60,7 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
         {
             _isPlayingJumpClip = isRising;
             _context.Animator.SetBase(_context.AirborneAnimationData, isRising, _context.AirborneStateId,
-                _context.CharacterMove.CurrentSpeed);
+                _context.CharacterMove.CommandedSpeedMetersPerSecond);
         }
     }
 }

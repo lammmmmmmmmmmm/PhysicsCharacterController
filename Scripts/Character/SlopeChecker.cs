@@ -96,7 +96,7 @@ namespace PhysicsCharacterController
             }
 
             // Calculate what the velocity should be if aligned with the slope
-            Vector3 slopeAlignedVelocity = _slopeAlignedForward * _characterMove.CurrentSpeed;
+            Vector3 slopeAlignedVelocity = _slopeAlignedForward * _characterMove.CommandedSpeedMetersPerSecond;
 
             // The contribution is the difference between slope-aligned and horizontal
             Vector3 contribution = slopeAlignedVelocity - desiredMovement;

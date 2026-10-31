@@ -132,7 +132,7 @@ namespace PhysicsCharacterController.Tests.PlayMode
                     " wall=" + wall.IsTouchingWall + " wallNormal=" + wall.WallNormal +
                     " cancellation=" + wall.GetVelocityContribution(_rigidbody.linearVelocity, Vector3.forward * 5f) +
                     " grounded=" + ground.IsGrounded + " normal=" + ground.GroundHit.normal +
-                    " speed=" + _character.GetComponent<CharacterMove>().CurrentSpeed;
+                    " speed=" + _character.GetComponent<CharacterMove>().CommandedSpeedMetersPerSecond;
                 int maxStalledTickCount = hasClimbed ? maxPostClimbStalledTickCount : 15;
                 Assert.That(stalledTickCount, Is.LessThan(maxStalledTickCount), "Movement paused at ledge:" + state);
                 previousZMeters = _rigidbody.position.z;
