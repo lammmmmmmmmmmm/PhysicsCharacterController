@@ -181,7 +181,9 @@ namespace PhysicsCharacterController
             Vector3 baseMovementVelocity = CalculateBaseVelocity();
 
             Vector3 finalVelocity = baseMovementVelocity;
-            finalVelocity.y = _rigidbody.linearVelocity.y;
+            Vector3 additiveVelocity = CalculateAdditiveVelocity(baseMovementVelocity);
+            finalVelocity += additiveVelocity;
+            finalVelocity.y = _rigidbody.linearVelocity.y + additiveVelocity.y;
 
             _rigidbody.linearVelocity = finalVelocity;
         }
