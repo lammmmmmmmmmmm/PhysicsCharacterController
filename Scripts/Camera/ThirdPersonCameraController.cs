@@ -47,6 +47,16 @@ namespace PhysicsCharacterController
 			_orbitalFollow.VerticalAxis.Value = 1 - _currentInputVector.y;
 		}
 
+		/// <summary>
+		/// Adds look input on top of the player's own, in orbital axis units: x is horizontal degrees,
+		/// y is the normalized vertical axis where larger values look further up. Used by aim assist.
+		/// </summary>
+		public void AddLookInput(Vector2 axisDelta)
+		{
+			_input += axisDelta;
+			_input.y = Mathf.Clamp01(_input.y);
+		}
+
 		public void SetInitialValue(float valueX, float valueY)
 		{
 			CacheOrbitalFollow();
