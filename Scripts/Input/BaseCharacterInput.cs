@@ -28,9 +28,13 @@ namespace PhysicsCharacterController
 
 		public abstract Vector2 GetMoveInput();
 		public abstract float GetMoveAngle();
+		public virtual bool SupportsDiving => true;
+		public virtual bool UsesWorldSpaceSwimDirection => false;
 		public Vector3 HorizontalMoveDirection => Quaternion.Euler(0f, GetMoveAngle(), 0f) * Vector3.forward;
 
 		#region Public Methods
+
+		public virtual bool TryApplySwimExitStep(Vector3 velocityMetersPerSecond, float deltaSeconds, float surfaceHeightMeters) => false;
 
 		public void SetNormalActionsEnabled(bool areEnabled)
 		{

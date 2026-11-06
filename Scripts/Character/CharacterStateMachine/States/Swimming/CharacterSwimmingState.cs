@@ -27,7 +27,7 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
 
         protected override State GetInitialState()
         {
-            bool shouldBeginUnderwater = !_context.SwimmingMovement.ShouldReturnToSurface();
+            bool shouldBeginUnderwater = _context.Input.SupportsDiving && !_context.SwimmingMovement.ShouldReturnToSurface();
             if (shouldBeginUnderwater && _context.SwimmingMovement.TryEnterUnderwater())
             {
                 return Underwater;
@@ -65,7 +65,7 @@ namespace PhysicsCharacterController.CharacterStateMachine.States
             _isShallowWaterExitRecoveryActive = false;
             _context.SwimmingMovement.BeginSwimmingEntryVelocityDamping();
             _context.Input.SetTerrestrialActionsEnabled(false);
-            _context.Input.SetDiveActionEnabled(_context.SwimmingMovement.UsesDiveButtonControl);
+            _context.Input.SetDiveActionEnabled(_context.Input.SupportsDiving && _context.SwimmingMovement.UsesDiveButtonControl);
             _context.CharacterCrouch.ApplyStandState();
             OnSwimmingStateChanged?.Invoke(true);
         }

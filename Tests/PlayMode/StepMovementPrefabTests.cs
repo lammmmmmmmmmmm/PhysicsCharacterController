@@ -98,6 +98,26 @@ namespace PhysicsCharacterController.Tests.PlayMode
             return UniTask.ToCoroutine(() => AssertApproachesOneMeterLedge(true, maxPostClimbStalledTickCount: 1));
         }
 
+        [TestCase(0.15f, true)]
+        [TestCase(1f, false)]
+        public void SwimmingExitUsesSupportedLowBank(float bankHeightAboveSurfaceMeters, bool canExit)
+        {
+            const float SURFACE_HEIGHT_METERS = 0.7f;
+            CreateCharacter(CAPSULE_PREFAB_GUID, hasBoxFloor: false);
+            _character.SetActive(true);
+            var shape = _character.GetComponent<CharacterColliderShape>();
+            float bankHeightMeters = SURFACE_HEIGHT_METERS + bankHeightAboveSurfaceMeters;
+            float bankFrontMeters = shape.CalculateWorldBounds().extents.z + 0.02f;
+            CreateBox(new Vector3(0f, bankHeightMeters * 0.5f, bankFrontMeters + 1f), new Vector3(3f, bankHeightMeters, 2f));
+            Physics.SyncTransforms();
+            var stepChecker = _character.GetComponent<StepChecker>();
+
+            bool hasExited = stepChecker.TryApplySwimExitStep(Vector3.forward * 5f, 0.05f, TEST_ORIGIN_METERS.y + SURFACE_HEIGHT_METERS);
+
+            Assert.That(hasExited, Is.EqualTo(canExit));
+            if (canExit) Assert.That(_rigidbody.position.y, Is.GreaterThan(TEST_ORIGIN_METERS.y + bankHeightMeters + 0.85f));
+        }
+
         #endregion
 
         #region Private Methods

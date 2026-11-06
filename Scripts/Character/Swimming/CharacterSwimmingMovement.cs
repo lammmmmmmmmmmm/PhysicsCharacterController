@@ -50,6 +50,7 @@ namespace PhysicsCharacterController
 
         public bool ShouldDive()
         {
+            if (!_input.SupportsDiving) return false;
             if (UsesDiveButtonControl)
             {
                 return _stateResolver.ShouldDiveWithDiveButton(_input.IsDiveRequested);
@@ -169,12 +170,18 @@ namespace PhysicsCharacterController
         public void MoveAtSurface(float fixedDeltaTime)
         {
             Vector2 movementInput = _input.GetMoveInput();
-            RequestedDirection = _motionSolver.CalculateSurfaceDirection(
-                movementInput,
-                _characterRotationPolicy.MovementForwardDirection,
-                _characterRotationPolicy.MovementRightDirection);
+            RequestedDirection = _input.UsesWorldSpaceSwimDirection
+                ? _input.HorizontalMoveDirection * Mathf.Clamp01(movementInput.magnitude)
+                : _motionSolver.CalculateSurfaceDirection(
+                    movementInput, _characterRotationPolicy.MovementForwardDirection, _characterRotationPolicy.MovementRightDirection);
 
             float speedMetersPerSecond = ResolveRequestedSpeedMetersPerSecond();
+            if (_input.TryApplySwimExitStep(RequestedDirection * speedMetersPerSecond, fixedDeltaTime, _waterSensor.WaterSurfaceHeightMeters))
+            {
+                UpdateAnimationSpeed(RequestedDirection.magnitude, speedMetersPerSecond, fixedDeltaTime);
+                return;
+            }
+
             Vector3 targetVelocity = _motionSolver.CalculateSurfaceTargetVelocity(
                 RequestedDirection,
                 speedMetersPerSecond,

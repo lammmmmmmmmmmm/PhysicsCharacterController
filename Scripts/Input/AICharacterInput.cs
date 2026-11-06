@@ -1,3 +1,4 @@
+using System;
 using Pathfinding;
 using UnityEngine;
 
@@ -21,6 +22,25 @@ namespace PhysicsCharacterController
         private ulong _requestVersion;
         private Vector3 _destinationMeters;
         private Vector3 _waypointMeters;
+        private Func<float> _getNavigationHeightMeters;
+        private Func<Path, bool> _isPathUsable;
+        private StepChecker _swimExitStepChecker;
+        private float _arrivalHeightToleranceMeters = SURFACE_ARRIVAL_TOLERANCE_METERS;
+        private const float SURFACE_ARRIVAL_TOLERANCE_METERS = 0.55f;
+        private const float SURFACE_WAYPOINT_TOLERANCE_METERS = 0.35f;
+
+        public override bool SupportsDiving => false;
+        public override bool UsesWorldSpaceSwimDirection => true;
+        public Path CurrentPath => _currentPath;
+        public Vector3 NavigationPositionMeters
+        {
+            get
+            {
+                Vector3 positionMeters = transform.position;
+                if (_getNavigationHeightMeters != null) positionMeters.y = _getNavigationHeightMeters();
+                return positionMeters;
+            }
+        }
         public NavigationStatus Status { get; private set; }
         // Preserve the legacy idle/completed flag; Status distinguishes failure from arrival.
         public bool HasReachedDestination => Status != NavigationStatus.Pending && Status != NavigationStatus.Moving;
@@ -45,6 +65,24 @@ namespace PhysicsCharacterController
         #endregion
 
         #region Public Methods
+
+        public void ConfigurePathSurface(ITraversalProvider traversalProvider, Func<Path, bool> isPathUsable, float groundStepHeightMeters)
+        {
+            _seeker.traversalProvider = traversalProvider;
+            _isPathUsable = isPathUsable;
+            _arrivalHeightToleranceMeters = Mathf.Max(SURFACE_ARRIVAL_TOLERANCE_METERS, groundStepHeightMeters);
+        }
+
+        public void SetNavigationHeightSource(Func<float> getNavigationHeightMeters) => _getNavigationHeightMeters = getNavigationHeightMeters;
+
+        public void SetSwimExitStepChecker(StepChecker stepChecker) => _swimExitStepChecker = stepChecker;
+
+        public override bool TryApplySwimExitStep(Vector3 velocityMetersPerSecond, float deltaSeconds, float surfaceHeightMeters)
+        {
+            return _swimExitStepChecker && _swimExitStepChecker.TryApplySwimExitStep(velocityMetersPerSecond, deltaSeconds, surfaceHeightMeters);
+        }
+
+        public void SetTraversableTags(int tagMask) => _seeker.traversableTags = tagMask;
 
         public override float GetMoveAngle()
         {
@@ -82,14 +120,14 @@ namespace PhysicsCharacterController
                 Debug.LogWarning("AI navigation request ignored because the input is disabled.", this);
                 return;
             }
-            if (HorizontalDistanceMeters(transform.position, positionMeters) <= _stoppingDistanceMeters)
+            if (IsAtDestination())
             {
                 Status = NavigationStatus.Arrived;
                 return;
             }
             Status = NavigationStatus.Pending;
             var request = new PathRequest(this, _requestVersion);
-            _requestedPath = ABPath.Construct(transform.position, positionMeters, null);
+            _requestedPath = ABPath.Construct(NavigationPositionMeters, positionMeters, null);
             _requestedPath.Claim(this);
             // Seeker callbacks run after endpoint projection and the other path modifiers.
             _seeker.StartPath(_requestedPath, request.AcceptPath);
@@ -129,8 +167,14 @@ namespace PhysicsCharacterController
             }
 
             _requestedPath = null;
-            if (path.error || path.vectorPath == null || path.vectorPath.Count == 0 ||
-                HorizontalDistanceMeters(path.vectorPath[path.vectorPath.Count - 1], _destinationMeters) > Mathf.Max(_stoppingDistanceMeters, _pathEndpointToleranceMeters))
+            if (!path.error && _isPathUsable != null && !_isPathUsable(path))
+            {
+                path.Release(this);
+                Status = NavigationStatus.Unreachable;
+                return;
+            }
+
+            if (path.error || path.vectorPath == null || path.vectorPath.Count == 0 || !IsAcceptableEndpoint(path.vectorPath[^1]))
             {
                 string failure = path.errorLog;
                 if (!path.error)
@@ -165,7 +209,7 @@ namespace PhysicsCharacterController
                 return;
             }
 
-            if (HorizontalDistanceMeters(_destinationMeters, transform.position) <= _stoppingDistanceMeters)
+            if (IsAtDestination())
             {
                 CancelPendingPath();
                 ReleasePath();
@@ -174,9 +218,11 @@ namespace PhysicsCharacterController
                 return;
             }
 
+            float waypointToleranceMeters = _getNavigationHeightMeters == null
+                ? _nextWaypointDistance : Mathf.Min(_nextWaypointDistance, SURFACE_WAYPOINT_TOLERANCE_METERS);
             while (_currentWaypointIndex < _currentPath.vectorPath.Count - 1 &&
-                (HorizontalDistanceMeters(transform.position, _currentPath.vectorPath[_currentWaypointIndex]) <= _nextWaypointDistance ||
-                 HasPassedWaypoint(_currentWaypointIndex)))
+                (HorizontalDistanceMeters(transform.position, _currentPath.vectorPath[_currentWaypointIndex]) <= waypointToleranceMeters ||
+                 HasPassedWaypoint(_currentWaypointIndex) && _getNavigationHeightMeters == null))
             {
                 _currentWaypointIndex++;
             }
@@ -207,6 +253,19 @@ namespace PhysicsCharacterController
             if (_currentPath == null) return;
             _currentPath.Release(this);
             _currentPath = null;
+        }
+
+        private bool IsAtDestination()
+        {
+            Vector3 positionMeters = NavigationPositionMeters;
+            return HorizontalDistanceMeters(positionMeters, _destinationMeters) <= _stoppingDistanceMeters &&
+                (_getNavigationHeightMeters == null || Mathf.Abs(positionMeters.y - _destinationMeters.y) <= _arrivalHeightToleranceMeters);
+        }
+
+        private bool IsAcceptableEndpoint(Vector3 endpointMeters)
+        {
+            return HorizontalDistanceMeters(endpointMeters, _destinationMeters) <= Mathf.Max(_stoppingDistanceMeters, _pathEndpointToleranceMeters) &&
+                (_getNavigationHeightMeters == null || Mathf.Abs(endpointMeters.y - _destinationMeters.y) <= SURFACE_ARRIVAL_TOLERANCE_METERS);
         }
 
         // Graph nodes lie on the floor; the controller root sits at the collider center.

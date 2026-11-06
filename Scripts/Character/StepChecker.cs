@@ -9,6 +9,7 @@ namespace PhysicsCharacterController
     {
         private const int MAX_HIT_COUNT = 32;
         private const float PENETRATION_TOLERANCE_METERS = 0.0001f;
+        public const float MAX_SWIM_EXIT_HEIGHT_ABOVE_SURFACE_METERS = 0.5f;
 
         [Header("Configuration")]
         [SerializeField] private LayerMask _groundMask = Physics.DefaultRaycastLayers;
@@ -68,10 +69,24 @@ namespace PhysicsCharacterController
                 return false;
             }
 
-            // The complete tick's displacement is consumed here. Physics must not apply it a second time.
-            _rigidbody.position += displacementMeters;
-            _rigidbody.linearVelocity = Vector3.zero;
-            _lastStepFixedTimeSeconds = Time.fixedTime;
+            ApplyStep(displacementMeters);
+            return true;
+        }
+
+        public bool TryApplySwimExitStep(Vector3 velocityMetersPerSecond, float deltaSeconds, float surfaceHeightMeters)
+        {
+            if (!isActiveAndEnabled || !_colliderShape.IsPhysicsEnabled || deltaSeconds <= 0f) return false;
+            float feetHeightMeters = _colliderShape.CalculateWorldBounds().min.y;
+            float maxRiseMeters = surfaceHeightMeters + MAX_SWIM_EXIT_HEIGHT_ABOVE_SURFACE_METERS - feetHeightMeters;
+            float minGroundNormalY = Mathf.Cos(_slopeChecker.MaxClimbableSlopeAngle * Mathf.Deg2Rad);
+            if (!_solver.TryFindStep(velocityMetersPerSecond * deltaSeconds, true, maxRiseMeters, _skinWidthMeters,
+                    minGroundNormalY, out Vector3 displacementMeters) ||
+                feetHeightMeters + displacementMeters.y < surfaceHeightMeters - MAX_SWIM_EXIT_HEIGHT_ABOVE_SURFACE_METERS)
+            {
+                return false;
+            }
+
+            ApplyStep(displacementMeters);
             return true;
         }
 
@@ -140,6 +155,14 @@ namespace PhysicsCharacterController
         #endregion
 
         #region Private Methods
+
+        private void ApplyStep(Vector3 displacementMeters)
+        {
+            // The complete tick's displacement is consumed here. Physics must not apply it a second time.
+            _rigidbody.position += displacementMeters;
+            _rigidbody.linearVelocity = Vector3.zero;
+            _lastStepFixedTimeSeconds = Time.fixedTime;
+        }
 
         private Vector3 FindSurfaceNormal(RaycastHit hit, Vector3 castDirection)
         {
