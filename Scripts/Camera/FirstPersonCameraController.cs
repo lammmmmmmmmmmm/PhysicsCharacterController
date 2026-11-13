@@ -48,10 +48,21 @@ namespace PhysicsCharacterController
 
         public void SetInitialValue(float panDegrees, float tiltDegrees)
         {
+            _panTilt = GetComponent<CinemachinePanTilt>();
             _targetAxisDegrees = new Vector2(panDegrees, tiltDegrees);
             _currentAxisDegrees = _targetAxisDegrees;
+            _smoothVelocityDegreesPerSecond = Vector2.zero;
 
             ApplyAxisDegrees(_currentAxisDegrees);
+        }
+
+        public void MatchLookDirection(CinemachineCamera camera, Quaternion worldRotation, Vector3 worldUp)
+        {
+            _panTilt = GetComponent<CinemachinePanTilt>();
+            camera.InternalUpdateCameraState(worldUp, -1f);
+            _panTilt.ForceCameraPosition(camera.State.RawPosition, worldRotation);
+            SetInitialValue(_panTilt.PanAxis.Value, _panTilt.TiltAxis.Value);
+            camera.InternalUpdateCameraState(worldUp, -1f);
         }
 
         #endregion
@@ -61,8 +72,13 @@ namespace PhysicsCharacterController
         private void UpdateTargetAxisDegrees()
         {
             Vector2 input = _cameraActionReference.action.ReadValue<Vector2>();
-            _targetAxisDegrees += input * _mouseSensitivity * new Vector2(0.01f, 0.001f);
-            _targetAxisDegrees.y = _panTilt.TiltAxis.ClampValue(_targetAxisDegrees.y);
+            Vector2 axisDeltaDegrees = input * _mouseSensitivity * new Vector2(0.01f, 0.001f);
+            _targetAxisDegrees.x += axisDeltaDegrees.x;
+            // An inherited third-person pitch can be outside the first-person input range.
+            // Allow input back toward the range without snapping the camera at the handoff.
+            Vector2 pitchRangeDegrees = _panTilt.TiltAxis.Range;
+            _targetAxisDegrees.y = Mathf.Clamp(_targetAxisDegrees.y + axisDeltaDegrees.y,
+                Mathf.Min(pitchRangeDegrees.x, _targetAxisDegrees.y), Mathf.Max(pitchRangeDegrees.y, _targetAxisDegrees.y));
         }
 
         private void SmoothAndApplyAxisDegrees()

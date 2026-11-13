@@ -11,6 +11,8 @@ namespace PhysicsCharacterController
 	/// </summary>
 	public class ThirdPersonCameraController : MonoBehaviour
 	{
+		private const int PITCH_SEARCH_STEPS = 12;
+
 		[SerializeField] private InputActionReference _cameraActionReference;
 		[SerializeField] private LockCursor _lockCursor;
 
@@ -57,14 +59,70 @@ namespace PhysicsCharacterController
 			_input.y = Mathf.Clamp01(_input.y);
 		}
 
-		public void SetInitialValue(float valueX, float valueY)
+		public void SetInitialValue(float yawDegrees, float orbitHeight01)
 		{
 			CacheOrbitalFollow();
-			_input = new Vector2(valueX, valueY);
+			_input = new Vector2(yawDegrees, 1f - orbitHeight01);
 			_currentInputVector = _input;
+			_smoothVelocity = Vector2.zero;
 
-			_orbitalFollow.HorizontalAxis.Value = valueX;
-			_orbitalFollow.VerticalAxis.Value = valueY;
+			_orbitalFollow.HorizontalAxis.Value = yawDegrees;
+			_orbitalFollow.VerticalAxis.Value = orbitHeight01;
+		}
+
+		public void MatchLookDirection(CinemachineCamera camera, Quaternion worldRotation, Vector3 worldUp)
+		{
+			CacheOrbitalFollow();
+			Vector3 targetForward = worldRotation * Vector3.forward;
+			Vector3 targetHeading = Vector3.ProjectOnPlane(targetForward, worldUp);
+			float targetElevation = Vector3.Dot(targetForward, worldUp);
+			float yawDegrees = _orbitalFollow.HorizontalAxis.Value;
+			float orbitHeight01 = _orbitalFollow.VerticalAxis.Value;
+			var verticalRecentering = _orbitalFollow.VerticalAxis.Recentering;
+			_orbitalFollow.VerticalAxis.Recentering.Enabled = false;
+			_orbitalFollow.VerticalAxis.CancelRecentering();
+
+			// The three-ring spline, aim offset, and tracking frame all affect the rendered direction.
+			// Evaluate the actual rig to map world-space look back to orbital controls.
+			for (int pass = 0; pass < 2; pass++)
+			{
+				Vector3 forward = EvaluateForward(camera, worldUp, yawDegrees, orbitHeight01);
+				float headingErrorDegrees = Vector3.SignedAngle(Vector3.ProjectOnPlane(forward, worldUp), targetHeading, worldUp);
+				yawDegrees = _orbitalFollow.HorizontalAxis.ClampValue(yawDegrees + headingErrorDegrees);
+				orbitHeight01 = FindOrbitHeight(camera, worldUp, yawDegrees, targetElevation);
+			}
+			Vector3 matchedForward = EvaluateForward(camera, worldUp, yawDegrees, orbitHeight01);
+			float finalHeadingErrorDegrees = Vector3.SignedAngle(Vector3.ProjectOnPlane(matchedForward, worldUp), targetHeading, worldUp);
+			yawDegrees = _orbitalFollow.HorizontalAxis.ClampValue(yawDegrees + finalHeadingErrorDegrees);
+
+			SetInitialValue(yawDegrees, orbitHeight01);
+			camera.InternalUpdateCameraState(worldUp, -1f);
+			_orbitalFollow.VerticalAxis.Recentering = verticalRecentering;
+			_orbitalFollow.VerticalAxis.CancelRecentering();
+		}
+
+		private float FindOrbitHeight(CinemachineCamera camera, Vector3 worldUp, float yawDegrees, float targetElevation)
+		{
+			float minimumHeight01 = _orbitalFollow.VerticalAxis.Range.x;
+			float maximumHeight01 = _orbitalFollow.VerticalAxis.Range.y;
+			for (int step = 0; step < PITCH_SEARCH_STEPS; step++)
+			{
+				float height01 = (minimumHeight01 + maximumHeight01) * 0.5f;
+				float elevation = Vector3.Dot(EvaluateForward(camera, worldUp, yawDegrees, height01), worldUp);
+				if (elevation > targetElevation)
+					minimumHeight01 = height01;
+				else
+					maximumHeight01 = height01;
+			}
+			return (minimumHeight01 + maximumHeight01) * 0.5f;
+		}
+
+		private Vector3 EvaluateForward(CinemachineCamera camera, Vector3 worldUp, float yawDegrees, float height01)
+		{
+			_orbitalFollow.HorizontalAxis.Value = yawDegrees;
+			_orbitalFollow.VerticalAxis.Value = height01;
+			camera.InternalUpdateCameraState(worldUp, -1f);
+			return camera.State.GetFinalOrientation() * Vector3.forward;
 		}
 
 		private void CacheOrbitalFollow()

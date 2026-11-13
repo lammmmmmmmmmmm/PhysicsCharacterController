@@ -28,9 +28,8 @@ namespace PhysicsCharacterController
         [SerializeField] private Key _toggleKey = Key.F2;
 
         private FirstPersonCameraController _firstPersonCameraController;
-        private CinemachinePanTilt _firstPersonPanTilt;
         private ThirdPersonCameraController _thirdPersonCameraController;
-        private CinemachineOrbitalFollow _thirdPersonOrbitalFollow;
+        private CinemachineBrain _brain;
         private Coroutine _maskUpdateCoroutine;
 
         public bool IsThirdPersonActive => _isThirdPersonActive;
@@ -38,7 +37,7 @@ namespace PhysicsCharacterController
         private void Awake()
         {
             CacheComponents();
-            ApplyCameraMode();
+            ApplyCameraMode(null);
         }
 
         private void Update()
@@ -49,14 +48,13 @@ namespace PhysicsCharacterController
         private void CacheComponents()
         {
             _firstPersonCameraController = _firstPersonCamera.GetComponent<FirstPersonCameraController>();
-            _firstPersonPanTilt = _firstPersonCamera.GetComponent<CinemachinePanTilt>();
             _thirdPersonCameraController = _thirdPersonCamera.GetComponent<ThirdPersonCameraController>();
-            _thirdPersonOrbitalFollow = _thirdPersonCamera.GetComponent<CinemachineOrbitalFollow>();
+            _brain = _mainCamera.GetComponent<CinemachineBrain>();
         }
 
         private void HandleCameraToggleInput()
         {
-            if (Keyboard.current[_toggleKey].wasPressedThisFrame)
+            if (Keyboard.current?[_toggleKey].wasPressedThisFrame == true)
             {
                 ToggleCameraMode();
             }
@@ -64,8 +62,7 @@ namespace PhysicsCharacterController
 
         public void ToggleCameraMode()
         {
-            _isThirdPersonActive = !_isThirdPersonActive;
-            ApplyCameraMode();
+            SetThirdPersonMode(!_isThirdPersonActive);
         }
 
         public void SetThirdPersonMode(bool isThirdPerson)
@@ -76,45 +73,57 @@ namespace PhysicsCharacterController
             }
 
             _isThirdPersonActive = isThirdPerson;
-            ApplyCameraMode();
+            ApplyCameraMode(_mainCamera.transform.rotation);
         }
 
-        private void ApplyCameraMode()
+        private void ApplyCameraMode(Quaternion? outgoingRotation)
         {
             StopMaskUpdateCoroutine();
 
             if (_isThirdPersonActive)
             {
-                ActivateThirdPersonCamera();
+                ActivateThirdPersonCamera(outgoingRotation);
             }
             else
             {
-                ActivateFirstPersonCamera();
+                ActivateFirstPersonCamera(outgoingRotation);
             }
         }
 
-        private void ActivateThirdPersonCamera()
+        private void ActivateThirdPersonCamera(Quaternion? outgoingRotation)
         {
             _playerCharacterRotationPolicy.SetLockedToCamera(false);
 
             _firstPersonCamera.gameObject.SetActive(false);
             _thirdPersonCamera.gameObject.SetActive(true);
 
-            float horizontalAxisValue = _firstPersonPanTilt.PanAxis.Value;
-            _thirdPersonCameraController.SetInitialValue(horizontalAxisValue, _thirdPersonHeightOnTransition);
+            if (outgoingRotation.HasValue)
+            {
+                _thirdPersonCameraController.MatchLookDirection(_thirdPersonCamera, outgoingRotation.Value, _brain.DefaultWorldUp);
+            }
+            else
+            {
+                _thirdPersonCameraController.SetInitialValue(0f, _thirdPersonHeightOnTransition);
+            }
 
             _maskUpdateCoroutine = StartCoroutine(UpdateMaskCoroutine(_thirdPersonMaskChangeDelaySeconds, _thirdPersonMask));
         }
 
-        private void ActivateFirstPersonCamera()
+        private void ActivateFirstPersonCamera(Quaternion? outgoingRotation)
         {
             _playerCharacterRotationPolicy.SetLockedToCamera(true);
 
             _firstPersonCamera.gameObject.SetActive(true);
             _thirdPersonCamera.gameObject.SetActive(false);
 
-            float horizontalAxisValue = _thirdPersonOrbitalFollow.HorizontalAxis.Value;
-            _firstPersonCameraController.SetInitialValue(horizontalAxisValue, _firstPersonHeightOnTransition);
+            if (outgoingRotation.HasValue)
+            {
+                _firstPersonCameraController.MatchLookDirection(_firstPersonCamera, outgoingRotation.Value, _brain.DefaultWorldUp);
+            }
+            else
+            {
+                _firstPersonCameraController.SetInitialValue(0f, _firstPersonHeightOnTransition);
+            }
 
             _maskUpdateCoroutine = StartCoroutine(UpdateMaskCoroutine(_firstPersonMaskChangeDelaySeconds, _firstPersonMask));
         }
