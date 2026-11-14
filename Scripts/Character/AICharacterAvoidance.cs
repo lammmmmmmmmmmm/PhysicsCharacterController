@@ -20,7 +20,13 @@ namespace PhysicsCharacterController
         [SerializeField] private RVOController _rvoController;
         [SerializeField] private CharacterMove _characterMove;
 
+        [Tooltip("Within this horizontal distance of its destination the character follows its path without avoidance. " +
+                 "A destination at another agent (a chase target) lies inside that agent's avoidance zone, so avoiding it " +
+                 "there pushes the character around the agent, or into a nearby obstacle, instead of up to it.")]
+        [SerializeField, Min(0f)] private float _finalApproachDistanceMeters = 3f;
+
         private float _desiredSpeedMetersPerSecond;
+        private Vector3 _destinationMeters;
 
         #region Public Methods
 
@@ -33,6 +39,8 @@ namespace PhysicsCharacterController
                 return;
             }
 
+            // The agent keeps its target even on the final approach, so other agents still read where it is heading.
+            _destinationMeters = destinationMeters;
             _desiredSpeedMetersPerSecond = _characterMove.WalkSpeedMetersPerSecond;
             _rvoController.SetTarget(
                 waypointMeters,
@@ -44,8 +52,12 @@ namespace PhysicsCharacterController
         /// <returns>The horizontal direction RVO steers toward, or <paramref name="pathDirection"/> while it has no answer.</returns>
         public Vector3 GetSteeredDirection(Vector3 pathDirection)
         {
-            Vector3 steeredDeltaMeters = _rvoController.CalculateMovementDelta(transform.position, Time.deltaTime);
-            steeredDeltaMeters.y = 0f;
+            if (IsOnFinalApproach())
+            {
+                return pathDirection;
+            }
+
+            Vector3 steeredDeltaMeters = Horizontal(_rvoController.CalculateMovementDelta(transform.position, Time.deltaTime));
             return steeredDeltaMeters.sqrMagnitude > MINIMUM_STEER_DISTANCE_METERS * MINIMUM_STEER_DISTANCE_METERS
                 ? steeredDeltaMeters
                 : pathDirection;
@@ -54,7 +66,7 @@ namespace PhysicsCharacterController
         public float GetSpeedMultiplier(Vector3 intendedDirection)
         {
             // The agent joins the simulation on enable; until its first step there is no avoidance answer yet.
-            if (_desiredSpeedMetersPerSecond <= 0f || _rvoController.rvoAgent == null)
+            if (_desiredSpeedMetersPerSecond <= 0f || IsOnFinalApproach() || _rvoController.rvoAgent == null)
             {
                 return 1f;
             }
@@ -63,6 +75,27 @@ namespace PhysicsCharacterController
                 _rvoController.rvoAgent.CalculatedSpeed / _desiredSpeedMetersPerSecond,
                 0f,
                 MAXIMUM_SPEED_MULTIPLIER);
+        }
+
+        #endregion
+
+        #region Private Methods
+
+        private bool IsOnFinalApproach()
+        {
+            if (_desiredSpeedMetersPerSecond <= 0f)
+            {
+                return false;
+            }
+
+            Vector3 toDestinationMeters = Horizontal(_destinationMeters - transform.position);
+            return toDestinationMeters.sqrMagnitude <= _finalApproachDistanceMeters * _finalApproachDistanceMeters;
+        }
+
+        private static Vector3 Horizontal(Vector3 vector)
+        {
+            vector.y = 0f;
+            return vector;
         }
 
         #endregion
