@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Animancer;
 using UnityEngine;
 
@@ -41,6 +42,15 @@ namespace PhysicsCharacterController
             if (!Play(owner, priority, clip, fadeSeconds, true)) return false;
             SetSpeed(owner, playbackSpeed);
             _callbacks.Begin(contactTime01, contact, completed);
+            return true;
+        }
+
+        public bool PlayWithCallbacks(object owner, int priority, AnimationClip clip, float fadeSeconds,
+            float playbackSpeed, IReadOnlyList<float> contactTimes01, System.Action<int> contact, System.Action completed)
+        {
+            if (!Play(owner, priority, clip, fadeSeconds, true)) return false;
+            SetSpeed(owner, playbackSpeed);
+            _callbacks.Begin(contactTimes01, contact, completed);
             return true;
         }
 

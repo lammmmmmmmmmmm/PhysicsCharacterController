@@ -117,6 +117,19 @@ namespace PhysicsCharacterController
             return channel.PlayWithCallbacks(owner, priority, clip, fadeSeconds, playbackSpeed, contactTime01, contact, completed);
         }
 
+        /// <summary>For clips that land several hits per playback; <paramref name="contact"/> receives each hit's index in time order.</summary>
+        public bool PlayWithCallbacks(AnimationChannelSO channelSO, object owner, int priority, AnimationClip clip,
+            float fadeSeconds, float playbackSpeed, IReadOnlyList<float> contactTimes01, System.Action<int> contact,
+            System.Action completed)
+        {
+            if (!TryGetAnimationChannel(channelSO, out var channel))
+            {
+                return false;
+            }
+
+            return channel.PlayWithCallbacks(owner, priority, clip, fadeSeconds, playbackSpeed, contactTimes01, contact, completed);
+        }
+
         public void SetChannelSpeed(AnimationChannelSO channelSO, object owner, float playbackSpeed)
         {
             if (TryGetAnimationChannel(channelSO, out AnimationLayerChannel channel))
