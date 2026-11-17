@@ -84,6 +84,14 @@ namespace PhysicsCharacterController
 
         public void SetTraversableTags(int tagMask) => _seeker.traversableTags = tagMask;
 
+        public void SetSprinting(bool isSprinting)
+        {
+            if (IsSprintRequested != isSprinting)
+            {
+                InvokeSprint(isSprinting);
+            }
+        }
+
         public override float GetMoveAngle()
         {
             if (!AreNormalActionsEnabled || Status != NavigationStatus.Moving)
