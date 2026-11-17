@@ -46,54 +46,70 @@ namespace PhysicsCharacterController.Tests.PlayMode
         [UnitySetUp]
         public IEnumerator SetUp()
         {
-            // Isolate queued input from editor focus and native device events.
-            _inputFixture.Setup();
             SwimmingTestAssetConfigSO configSO = Resources.Load<SwimmingTestAssetConfigSO>("SwimmingTestAssetConfigSO");
             _playerPrefabHandle = Addressables.LoadAssetAsync<GameObject>(configSO.PlayerPrefab.RuntimeKey);
             _poolPrefabHandle = Addressables.LoadAssetAsync<GameObject>(configSO.SwimmingPoolPrefab.RuntimeKey);
             yield return _playerPrefabHandle;
             yield return _poolPrefabHandle;
 
-            _container = new ContainerBuilder().Build();
-            _playerInstance = _container.Instantiate(_playerPrefabHandle.Result);
-            _poolInstance = _container.Instantiate(_poolPrefabHandle.Result);
-            _underwaterCollider = _playerInstance.GetComponentInChildren<UnderwaterSwimmingCollider>(true);
-            _waterVolume = _poolInstance.GetComponentInChildren<WaterVolume>(true);
-            _poolInstance.transform.position = Vector3.up * TEST_POOL_ROOT_HEIGHT_METERS;
-            Physics.SyncTransforms();
-            _testPoolSurfaceHeightMeters = _waterVolume.SurfaceHeightMeters;
-            _testPoolFloorTopHeightMeters = _poolInstance.transform.Find("Pool Bottom").GetComponent<Collider>().bounds.max.y;
+            // Isolate queued input from editor focus and native device events.
+            _inputFixture.Setup();
 
-            // Keep collider-only tests clear of the currently open gameplay scene.
-            PlaceCharacter(new Vector3(0f, _testPoolSurfaceHeightMeters + 5f, 0f));
-            FindProductionInputAndSettings();
+            // NUnit skips TearDown when SetUp throws, so the fixture must be restored here or the editor loses its real devices.
+            try
+            {
+                _container = new ContainerBuilder().Build();
+                _playerInstance = _container.Instantiate(_playerPrefabHandle.Result);
+                _poolInstance = _container.Instantiate(_poolPrefabHandle.Result);
+                _underwaterCollider = _playerInstance.GetComponentInChildren<UnderwaterSwimmingCollider>(true);
+                _waterVolume = _poolInstance.GetComponentInChildren<WaterVolume>(true);
+                _poolInstance.transform.position = Vector3.up * TEST_POOL_ROOT_HEIGHT_METERS;
+                Physics.SyncTransforms();
+                _testPoolSurfaceHeightMeters = _waterVolume.SurfaceHeightMeters;
+                _testPoolFloorTopHeightMeters = _poolInstance.transform.Find("Pool Bottom").GetComponent<Collider>().bounds.max.y;
+
+                // Keep collider-only tests clear of the currently open gameplay scene.
+                PlaceCharacter(new Vector3(0f, _testPoolSurfaceHeightMeters + 5f, 0f));
+                FindProductionInputAndSettings();
+            }
+            catch
+            {
+                _inputFixture.TearDown();
+                throw;
+            }
         }
 
         [TearDown]
         public void TearDown()
         {
-            ReleaseAllKeyboardKeys();
-            _settingsSO.SetControlMode(_originalControlMode);
-            if (!_wasGameplayActionMapEnabled)
+            // The fixture replaced the editor's real input devices; if it is not torn down they are lost until the editor restarts.
+            try
             {
-                _gameplayActionMap.Disable();
+                ReleaseAllKeyboardKeys();
+                _settingsSO.SetControlMode(_originalControlMode);
+                if (!_wasGameplayActionMapEnabled)
+                {
+                    _gameplayActionMap.Disable();
+                }
+
+                Object.DestroyImmediate(_playerInstance);
+                Object.DestroyImmediate(_poolInstance);
+                _container?.Dispose();
+
+                if (_playerPrefabHandle.IsValid())
+                {
+                    ReleaseAddressableAsset(_playerPrefabHandle);
+                }
+
+                if (_poolPrefabHandle.IsValid())
+                {
+                    ReleaseAddressableAsset(_poolPrefabHandle);
+                }
             }
-
-            Object.DestroyImmediate(_playerInstance);
-            Object.DestroyImmediate(_poolInstance);
-            _container?.Dispose();
-
-            if (_playerPrefabHandle.IsValid())
+            finally
             {
-                ReleaseAddressableAsset(_playerPrefabHandle);
+                _inputFixture.TearDown();
             }
-
-            if (_poolPrefabHandle.IsValid())
-            {
-                ReleaseAddressableAsset(_poolPrefabHandle);
-            }
-
-            _inputFixture.TearDown();
         }
 
         #endregion
